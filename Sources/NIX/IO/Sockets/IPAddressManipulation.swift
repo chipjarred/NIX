@@ -23,17 +23,25 @@ import HostOS
 // MARK:- IP address manipulation and translation
 // -------------------------------------
 /**
- The function `inet_ntop() `converts an address *`src` from network format (usually a struct `in_addr` or some other binary form, in network byte order) to
- presentation format (suitable for external display purposes).  The size argument specifies the size, in bytes, of the buffer *dst.  `INET_ADDRSTRLEN`
- and `INET6_ADDRSTRLEN` define the maximum size required to convert an address of the respective type.  It returns `NULL` if a system error occurs (in
- which case, `errno` will have been set), or it returns a pointer to the destination string.  This function is presently valid for `AF_INET` and `AF_INET6`.
+ Convert an address *`src` from network format (usually a struct `in_addr` or
+ some other binary form, in network byte order) to  presentation format
+ (suitable for external display purposes).
+
+ This function is presently valid for `.inet4` and `.inet6`.
+ 
+ - Parameters:
+    - addressFamily: The address family of the address being translated.
+    - address: The `Address` to be translated
+ 
+ - Returns: On success, the returned `Result` contains the specified `address`
+    represented as a `String`.   On failure, it contains the `Error`.
  */
 @inlinable
 public func inet_ntop<IPAddress: Address>(
-    _ addressFamily: Int32,
+    _ addressFamily: AddressFamily,
     _ address: IPAddress) -> Result<String, Error>
 {
-    assert([AF_INET, AF_INET6].contains(addressFamily))
+    assert([.inet4, .inet6].contains(addressFamily))
     
     var buffer = [CChar](repeating: 0, count: 1024)
     return buffer.withUnsafeMutableBufferPointer

@@ -62,7 +62,7 @@ public struct UnlinkAtFlags: NIXFlags
 
 // -------------------------------------
 /**
- Removes a directory file whose name is given by path.
+ Removes a directory file whose name is given by `path`.
  
  The directory must not have any entries other than `.` and `..`.
  

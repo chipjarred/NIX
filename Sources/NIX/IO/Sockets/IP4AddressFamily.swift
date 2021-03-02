@@ -20,7 +20,7 @@
 
 // -------------------------------------
 /**
- Subset of `SocketAddressFamily` valid for IPv4 sockets
+ Subset of `AddressFamily` valid for IPv4 sockets
  */
 public enum IP4AddressFamily
 {
