@@ -326,7 +326,11 @@ public func connect<SockAddr: SocketAddress>(
     - buffer: A `Data` buffer into which to receive the data.  On entry,
         `buffer.count` will determine the maximum number of bytes that can
         be read.
-    - flags: `RecvFlags` specifying non-default reception behavior.
+    - flags: `RecvFlags` specifying non-default reception behavior. Valid
+         `flags` are
+         - `.outOfBand`: Process out-of-band data
+         - `.peek`: Peek at incoming message
+         - `.waitAll`: Wait for full request or error
  
  - Returns: a `Result` which on success contains the number of bytes
     received, and on failure contains the error.
@@ -350,6 +354,63 @@ public func recv(
         return bytesRead == -1
             ? .failure(Error())
             : .success(bytesRead)
+    }
+}
+
+// -------------------------------------
+/**
+ Receive data from a connected or accepted socket, obtaining the address of the
+ sending socket.
+ 
+ Stores the data in `buffer` over-writing any data in it.  The intention
+ is to allow re-using an existing buffer for multiple I/O calls rather than
+ repeatedly allocating them.  It is the caller's responsibilty copy the
+ data elsewhere if needed.
+ 
+ - Parameters:
+    - socket: A previously connected or accepted `SocketIODescriptor` to
+        receive data from.
+    - buffer: A `Data` buffer into which to receive the data.  On entry,
+        `buffer.count` will determine the maximum number of bytes that can
+        be read.
+    - flags: `RecvFlags` specifying non-default reception behavior.  Valid
+        `flags` are
+        - `.outOfBand`: Process out-of-band data
+        - `.peek`: Peek at incoming message
+        - `.waitAll`: Wait for full request or error
+    - remoteAddress: socket address to hold the remote sender's socket address
+        on exit.
+ 
+ - Returns: a `Result` which on success contains the number of bytes
+    received, and on failure contains the error.
+ */
+@inlinable
+public func recvfrom(
+    _ socket: SocketIODescriptor,
+    _ buffer: inout Data,
+    _ flags: RecvFlags,
+    _ remoteAddress: inout SocketAddress) -> Result<Int, Error>.Publisher
+{
+    assert(buffer.count > 0)
+    
+    return buffer.withUnsafeMutableBytes
+    { buffer in
+        return withMutablePointer(to: &remoteAddress, recastTo: sockaddr.self)
+        { remoteAddrPtr in
+            var outSize: UInt32
+            let bytesRead = recvfrom(
+                socket.descriptor,
+                buffer.baseAddress!,
+                buffer.count,
+                flags.rawValue,
+                remoteAddrPtr,
+                &outSize
+            )
+            if bytesRead == -1 { return .failure(Error()) }
+            
+            remoteAddrPtr.pointee.sa_len = __uint8_t(outSize)
+            return .success(bytesRead)
+        }
     }
 }
 
