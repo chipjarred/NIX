@@ -26,7 +26,7 @@ switch NIX.socket(.inet6, .stream, .ip)
 
 defer { _ = close(listenSocket) }
 
-let socketAddress = NIX.socketAddress(for: .any, port: 2020)
+let socketAddress = NIX.ip6SocketAddress(for: .any, port: 2020)
 
 if let error = NIX.bind(listenSocket, socketAddress) {
     fatalError("Could not bind listener socket: \(error)")
