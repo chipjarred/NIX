@@ -259,27 +259,17 @@ class IP4TestStreamServer: StreamServer<HostOS.sockaddr_in>
     
     // -------------------------------------
     override func makeSocket() -> Result<SocketIODescriptor, NIX.Error> {
-        return NIX.socket(.inet4, .stream, .ip)
+        return NIX.socket(.inet4, .stream, .tcp)
     }
     
     // -------------------------------------
-    override func makeServerSocketAddressForClient() -> sockaddr_in
-    {
-        return NIX.socketAddress(
-            for: .loopback,
-            port: port,
-            family: .inet4
-        ) as! sockaddr_in
+    override func makeServerSocketAddressForClient() -> sockaddr_in {
+        return NIX.ip4SocketAddress(for: .loopback, port: port)
     }
     
     // -------------------------------------
-    override func makeServerSocketAddressForServer() -> sockaddr_in
-    {
-        return NIX.socketAddress(
-            for: .any,
-            port: port,
-            family: .inet4
-        ) as! sockaddr_in
+    override func makeServerSocketAddressForServer() -> sockaddr_in {
+        return NIX.ip4SocketAddress(for: .any, port: port)
     }
 }
 
@@ -299,17 +289,17 @@ class IP6TestStreamServer: StreamServer<HostOS.sockaddr_in6>
     
     // -------------------------------------
     override func makeSocket() -> Result<SocketIODescriptor, NIX.Error> {
-        return NIX.socket(.inet6, .stream, .ip)
+        return NIX.socket(.inet6, .stream, .tcp)
     }
     
     // -------------------------------------
     override func makeServerSocketAddressForClient() -> sockaddr_in6 {
-        return NIX.socketAddress(for: .loopback, port: port) as! sockaddr_in6
+        return NIX.ip6SocketAddress(for: .loopback, port: port)
     }
     
     // -------------------------------------
     override func makeServerSocketAddressForServer() -> sockaddr_in6 {
-        return NIX.socketAddress(for: .any, port: port) as! sockaddr_in6
+        return NIX.ip6SocketAddress(for: .any, port: port)
     }
 }
 
@@ -333,11 +323,11 @@ class UnixDomainTestStreamServer: StreamServer<HostOS.sockaddr_un>
     
     // -------------------------------------
     override func makeServerSocketAddressForClient() -> sockaddr_un {
-        return NIX.socketAddress(for: path) as! sockaddr_un
+        return NIX.unixDomainSocketAddress(for: path)
     }
     
     // -------------------------------------
     override func makeServerSocketAddressForServer() -> sockaddr_un {
-        return NIX.socketAddress(for: path) as! sockaddr_un
+        return NIX.unixDomainSocketAddress(for: path)
     }
 }

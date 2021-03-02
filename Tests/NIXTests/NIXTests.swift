@@ -12,25 +12,6 @@ final class NIXTests: XCTestCase
     ]
     
     // -------------------------------------
-    /*
-     WARNING: This test fails due to entitlements issue with XCTest runner on
-     macOS. I have it disabled in Xcode.  In order to successfully test it, you
-     have to run it in an app with the appropriate entitlements.
-     
-     see: https://developer.apple.com/forums/thread/114907
-
-     I *think* it will work on Linux where Apple entitlements isn't an issue,
-     so long as the user running XCTest has permissions to bind to ports, but I
-     don't have Linux installed anywhere to try it.
-     
-     The server socket fails on the call to NIX.bind.
-     
-     Strangely, the IPv6 test works, which seems like a bug in entitlements.
-     Either it's a bug because IP4 should work too, or it's a bug because the
-     entitlements don't protect against IPv6 network access.  Either way it's a
-     bug.
-     
-     */
     func test_ip4_client_can_connect_to_server()
     {
         let serverPort = 2020
@@ -53,7 +34,7 @@ final class NIXTests: XCTestCase
         defer { server.terminate() }
         
         let socket: SocketIODescriptor
-        switch NIX.socket(.inet4, .stream, .ip)
+        switch NIX.socket(.inet4, .stream, .tcp)
         {
             case .success(let s): socket = s
             case .failure(let e):
@@ -68,7 +49,8 @@ final class NIXTests: XCTestCase
             }
         }
         
-        let serverAddress = NIX.socketAddress(for: .loopback, port: serverPort)
+        let serverAddress =
+            NIX.ip4SocketAddress(for: .loopback, port: serverPort)
         
         if let error = NIX.connect(socket, serverAddress)
         {
@@ -141,7 +123,8 @@ final class NIXTests: XCTestCase
             }
         }
         
-        let serverAddress = NIX.socketAddress(for: .loopback, port: serverPort)
+        let serverAddress =
+            NIX.ip6SocketAddress(for: .loopback, port: serverPort)
         
         if let error = NIX.connect(socket, serverAddress)
         {
@@ -236,7 +219,7 @@ final class NIXTests: XCTestCase
             return
         }
         
-        let serverAddress = NIX.socketAddress(for: unixPath)
+        let serverAddress = NIX.unixDomainSocketAddress(for: unixPath)
         
         if let error = NIX.connect(socket, serverAddress)
         {

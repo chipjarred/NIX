@@ -166,10 +166,10 @@ public extension sockaddr_un
  Cretae an IPv4 socket address with the specified IP `address` and `port`.
  */
 @inlinable
-public func socketAddress(
+public func ip4SocketAddress(
     for ip4Address: in_addr,
     port: Int,
-    family: IP4AddressFamily = .inet4) -> some SocketAddress
+    family: IP4AddressFamily = .inet4) -> sockaddr_in
 {
     var sAddr = sockaddr_in()
     
@@ -183,9 +183,9 @@ public func socketAddress(
 
 // -------------------------------------
 @inlinable
-public func socketAddress(
+public func ip6SocketAddress(
     for ip6Address: in6_addr,
-    port: Int) -> some SocketAddress
+    port: Int) -> sockaddr_in6
 {
     var sAddr = sockaddr_in6()
     
@@ -200,7 +200,7 @@ public func socketAddress(
 
 // -------------------------------------
 @inlinable
-public func socketAddress(for path: UnixSocketPath) -> some SocketAddress
+public func unixDomainSocketAddress(for path: UnixSocketPath) -> sockaddr_un
 {
     var sAddr = sockaddr_un()
     

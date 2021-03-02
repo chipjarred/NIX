@@ -33,7 +33,7 @@ public extension in_addr
     // -------------------------------------
     @inlinable static var any: Self { Self(s_addr: 0) }
     @inlinable static var broadcast: Self { Self(s_addr: 0xffff_ffff) }
-    @inlinable static var loopback: Self { Self(s_addr: 0xffff_ffff) }
+    @inlinable static var loopback: Self { Self(s_addr: 0x0100_007f) }
 }
 
 
