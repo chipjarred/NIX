@@ -21,48 +21,45 @@
 import HostOS
 
 // -------------------------------------
-/// Wrapper for standard C/Darwin's `errno`
-public struct Error: Swift.Error, CustomStringConvertible
-{
-    public let errno: Int32
-    
-    public init() { self.errno = HostOS.errno }
-    public init(_ errno: Int32) { self.errno = errno }
-    
-    public var localizedDescription: String {
-        return String(cString: strerror(errno))
-    }
-    
-    public var description: String {
-        return "\(errno): \(localizedDescription)"
-    }
-}
+public protocol Address { }
 
-// MARK:- Private helper functions
+// MARK:- IPv4
 // -------------------------------------
-@usableFromInline @inline(__always)
-internal func withPointer<T, U, R>(
-    to value: T,
-    recastTo: U.Type,
-    do block: (UnsafePointer<U>) throws -> R) rethrows -> R
-{
-    return try withUnsafePointer(to: value) {
-        return try $0.withMemoryRebound(to: U.self, capacity: 1) {
-            return try block($0)
-        }
-    }
-}
+extension in_addr: Address { }
 
 // -------------------------------------
-@usableFromInline @inline(__always)
-internal func withMutablePointer<T, U, R>(
-    to value: inout T,
-    recastTo: U.Type,
-    do block: (UnsafeMutablePointer<U>) throws -> R) rethrows -> R
+public extension in_addr
 {
-    return try withUnsafeMutablePointer(to: &value) {
-        return try $0.withMemoryRebound(to: U.self, capacity: 1) {
-            return try block($0)
-        }
+    // -------------------------------------
+    @inlinable static var any: Self { Self(s_addr: 0) }
+    @inlinable static var broadcast: Self { Self(s_addr: 0xffff_ffff) }
+    @inlinable static var loopback: Self { Self(s_addr: 0xffff_ffff) }
+}
+
+
+// MARK:- IPv6
+// -------------------------------------
+extension in6_addr: Address { }
+
+// -------------------------------------
+public extension in6_addr
+{
+    // -------------------------------------
+    @inlinable static var any: Self { in6addr_any }
+    @inlinable static var loopback: Self { in6addr_loopback }
+    
+    // -------------------------------------
+    @inlinable static var linkLocalAllNodes: Self {
+        in6addr_linklocal_allnodes
+    }
+    
+    // -------------------------------------
+    @inlinable static var linkLocalAllRouters: Self {
+        in6addr_linklocal_allrouters
+    }
+    
+    // -------------------------------------
+    @inlinable static var linkLocalAllV2Routers: Self {
+        in6addr_linklocal_allv2routers
     }
 }
