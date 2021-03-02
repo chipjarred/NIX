@@ -119,4 +119,4 @@ while true
     }
 }
 ```
-Obviously, one could write it much more succinctly using a higher level library, but that misses the point, which is that if directly using Darwin's (or Linux's) POSIX calls, much of the code would have to wrapped in `withUnsafePointer` closures, and it's easy to forget to check return values.   With `NIX` functions, if an error occurs, it can't be mistaken for good return values, because it's a completely different type.
+Obviously, one could write it much more succinctly using a higher level library, but that misses the point, which is that if directly using Darwin's (or Linux's) POSIX calls, much of the code would have to be wrapped in `withUnsafePointer` closures, and it's easy to forget to check return values.   With `NIX` functions, if an error occurs, it can't be mistaken for a good return value, because it's a completely different type.
