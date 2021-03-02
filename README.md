@@ -12,7 +12,7 @@ At the moment `NIX` mostly centers around socket functionality, but the intentio
 
 As an example, here's a simple echo server (IPv6) in all its POSIX-level glory, written using `NIX`:
 
-```
+```swift
 import NIX
 import Foundation
 
