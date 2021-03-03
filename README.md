@@ -26,7 +26,7 @@ switch NIX.socket(.inet6, .stream, .ip)
 
 defer { _ = close(listenSocket) }
 
-let socketAddress = NIX.ip6SocketAddress(for: .any, port: 2020)
+let socketAddress = SocketAddress(ip6Address: .any, port: 2020)
 
 if let error = NIX.bind(listenSocket, socketAddress) {
     fatalError("Could not bind listener socket: \(error)")
@@ -42,7 +42,7 @@ let dispatchQueue = DispatchQueue(label: "\(UUID())", attributes: .concurrent)
 
 while true
 {
-    var peerAddress = HostOS.sockaddr_in6()
+    var peerAddress = SocketAddress()
     var peerSocket: SocketIODescriptor
     switch NIX.accept(listenSocket, &peerAddress)
     {

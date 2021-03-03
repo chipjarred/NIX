@@ -14,6 +14,9 @@ let package = Package(
         .library(
             name: "HostOS",
             targets: ["HostOS"]),
+        .library(
+            name: "Examples",
+            targets: ["Examples"]),
     ],
     dependencies: [
         // Dependencies declare other packages that this package depends on.
@@ -28,6 +31,9 @@ let package = Package(
         .target(
             name: "NIX",
             dependencies: ["HostOS"]),
+        .target(
+            name: "Examples",
+            dependencies: ["NIX", "HostOS"]),
         .testTarget(
             name: "NIXTests",
             dependencies: ["NIX"]),
