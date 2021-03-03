@@ -32,10 +32,7 @@ func echoServerExample()
 
     while let peerSocket = acceptAConnection(for: listenSocket)
     {
-        dispatchQueue.async
-        {
-            defer { _ = NIX.close(peerSocket) }
-            
+        dispatchQueue.async {
             clientSession(for: peerSocket)
         }
     }
@@ -66,9 +63,8 @@ func setUpListenerSocket(onPort port: Int) -> SocketIODescriptor
 
 func acceptAConnection(for listener: SocketIODescriptor) -> SocketIODescriptor?
 {
-    var peerAddress = SocketAddress()
     var peerSocket: SocketIODescriptor
-    switch NIX.accept(listener, &peerAddress)
+    switch NIX.accept(listener)
     {
         case .success(let sock): peerSocket = sock
         case .failure(let error):
@@ -85,6 +81,8 @@ func acceptAConnection(for listener: SocketIODescriptor) -> SocketIODescriptor?
 
 func clientSession(for peerSocket: SocketIODescriptor)
 {
+    defer { _ = NIX.close(peerSocket) }
+    
     var readBuffer = Data(repeating: 0, count: 1024)
 
     while let peerMessage =

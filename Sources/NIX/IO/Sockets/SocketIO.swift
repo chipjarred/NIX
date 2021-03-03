@@ -212,7 +212,6 @@ public func listen(
  accepted socket may not be used to accept more connections.  The original
  socket socket, remains open.
 
- 
  This call is used with connection-based socket types, currently with `.stream`.
 
  It is possible to `select` a socket for the purposes of doing an `accept` by
@@ -267,6 +266,55 @@ public func accept(
 
 // -------------------------------------
 /**
+ Accept an incoming socket connection.
+ 
+ `accept()` extracts the first connection request on the queue of pending
+ connections, creates a new socket with the same properties of socket, and
+ *allocates a new file descriptor* for the socket.
+ 
+ If no pending connections are present on the queue, and the socket is not
+ marked as non-blocking, `accept()` blocks the caller until a connection is
+ present. If the socket is marked non-blocking and no pending connections are
+ present on the queue, `accept()` returns an error as described below.  The
+ accepted socket may not be used to accept more connections.  The original
+ socket socket, remains open.
+
+ This call is used with connection-based socket types, currently with `.stream`.
+
+ It is possible to `select` a socket for the purposes of doing an `accept` by
+ selecting it for read.
+
+ For certain protocols which require an explicit confirmation, such as `.iso`
+ or `.datakit`, `accept()` can be thought of as merely dequeuing the next
+ connection request and not implying confirmation.  Confirmation can be implied
+ by a normal `read` or `write` on the new file descriptor, and rejection can be
+ implied by closing the new socket.
+
+ One can obtain user connection request data without confirming the connection
+ by issuing a `recvmsg` call with an `msg_iovlen` of `0` and a nonzero
+ `msg_controllen`, or by issuing a `getsockopt` request.  Similarly, one can
+ provide user connection rejection information by issuing a `sendmsg` call
+ providing only the control information, or by calling `setsockopt`.
+
+ - Parameters:
+    - socket: a socket that has been created with the `socket` function, bound
+        to an address via the `bind` function and is set for listening via the
+        `listen` function.
+ 
+ - Returns: On success, the returned `Result` will contain the accepted peer
+    socket that can be used for sending and receiving.  On failure, it will
+    contain the `Error` describing the reason for the failure.
+ */
+@inlinable
+public func accept(_ socket: SocketIODescriptor)
+        -> Result<SocketDescriptor, Error>
+{
+    var dummyAddress = SocketAddress()
+    return accept(socket, &dummyAddress)
+}
+
+// -------------------------------------
+/**
  Connect to a listening/waiting socket.
  
  If `socket` type `.datagram`, this call specifies the peer with which the
@@ -285,7 +333,6 @@ public func accept(
  address or an address with the address family set to .unspecified (the error
  `EAFNOSUPPORT` will be harmlessly returned).
 
- 
  - Parameters:
     - socket: The socket to connect to a remote listening socket.
     - remoteAddress: the address of the remote peer with which the socket is
