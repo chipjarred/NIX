@@ -10,6 +10,7 @@ class FileIO_UnitTests: XCTestCase
         ("test_write_writes_data_to_file", test_write_writes_data_to_file),
         ("test_read_reads_back_data_written_to_file", test_read_reads_back_data_written_to_file),
         ("test_readv_scatters_data_into_buffers_array", test_readv_scatters_data_into_buffers_array),
+        ("test_writev_writes_gathered_data_from_buffers_array", test_writev_writes_gathered_data_from_buffers_array),
     ]
     
     // -------------------------------------
@@ -147,6 +148,48 @@ class FileIO_UnitTests: XCTestCase
         var allData = Data(capacity: testData.count)
         for data in buffers {
             allData.append(contentsOf: data)
+        }
+        
+        XCTAssertEqual(allData, testData)
+    }
+    
+    // -------------------------------------
+    func test_writev_writes_gathered_data_from_buffers_array()
+    {
+        let testData = Data((0..<100).map { $0 })
+        let (file, cleanup) = createDataFile(from: Data())
+        defer { cleanup() }
+        
+        // Now we're set up for the actual test
+        var buffers = [Data]()
+        var srcStart = testData.startIndex
+        let bufferSize = 20
+        while srcStart < testData.endIndex
+        {
+            let srcEnd = min(srcStart + bufferSize, testData.endIndex)
+            buffers.append(Data(testData[srcStart..<srcEnd]))
+            srcStart = srcEnd
+        }
+        
+        switch NIX.writev(file, buffers)
+        {
+            case .success(let bytesWritten):
+                XCTAssertEqual(bytesWritten, testData.count)
+            case .failure(let error):
+                XCTFail("Error on writev: \(error)")
+        }
+        
+        if HostOS.lseek(file.descriptor, 0, SEEK_SET) < 0 {
+            XCTFail("Error on lseek: \(HostOS.errno)")
+        }
+        
+        var allData = Data(repeating: 0, count: testData.count)
+        switch NIX.read(file, &allData)
+        {
+            case .success(let bytesRead):
+                XCTAssertEqual(bytesRead, testData.count)
+            case .failure(let error):
+                XCTFail("Error reading back data: \(error)")
         }
         
         XCTAssertEqual(allData, testData)

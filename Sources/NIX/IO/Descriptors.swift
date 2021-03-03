@@ -177,3 +177,23 @@ public func write(
             : .success(bytesWritten)
     }
 }
+
+// -------------------------------------
+@inlinable
+public func writev(
+    _ descriptor: IODescriptor,
+    _ buffers: [Data]) -> Result<Int, Error>
+{
+    let iovecs = buffers.iovecs()
+    return iovecs.withUnsafeBufferPointer
+    {
+        let bytesWritten = writev(
+            descriptor.descriptor,
+            $0.baseAddress!,
+            Int32($0.count)
+        )
+        return bytesWritten == -1
+            ? .failure(Error())
+            : .success(bytesWritten)
+    }
+}
