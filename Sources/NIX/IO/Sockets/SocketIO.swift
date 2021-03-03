@@ -318,7 +318,7 @@ public func connect(
  
  Stores the data in `buffer` over-writing any data in it.  The intention
  is to allow re-using an existing buffer for multiple I/O calls rather than
- repeatedly allocating them.  It is the caller's responsibilty copy the
+ repeatedly allocating them.  It is the caller's responsibilty to copy the
  data elsewhere if needed.
  
  - Parameters:
@@ -326,7 +326,9 @@ public func connect(
         receive data from.
     - buffer: A `Data` buffer into which to receive the data.  On entry,
         `buffer.count` will determine the maximum number of bytes that can
-        be read.
+        be read.  The buffer's `.count` is not modified.  The caller should
+        use the returned number of bytes read to determine how many bytes of
+        `buffer` contain the received data.
     - flags: `RecvFlags` specifying non-default reception behavior. Valid
          `flags` are
          - `.outOfBand`: Process out-of-band data
@@ -365,7 +367,7 @@ public func recv(
  
  Stores the data in `buffer` over-writing any data in it.  The intention
  is to allow re-using an existing buffer for multiple I/O calls rather than
- repeatedly allocating them.  It is the caller's responsibilty copy the
+ repeatedly allocating them.  It is the caller's responsibilty to copy the
  data elsewhere if needed.
  
  - Important: For Unix domain *datagram* communication, if the sender did not
@@ -382,9 +384,11 @@ public func recv(
  - Parameters:
     - socket: A previously connected or accepted `SocketIODescriptor` to
         receive data from.
-    - buffer: A `Data` buffer into which to receive the data.  On entry,
-        `buffer.count` will determine the maximum number of bytes that can
-        be read.
+     - buffer: A `Data` buffer into which to receive the data.  On entry,
+         `buffer.count` will determine the maximum number of bytes that can
+         be read.  The buffer's `.count` is not modified.  The caller should
+         use the returned number of bytes read to determine how many bytes of
+         `buffer` contain the received data.
     - flags: `RecvFlags` specifying non-default reception behavior.  Valid
         `flags` are
         - `.outOfBand`: Process out-of-band data

@@ -54,19 +54,104 @@ public func close(_ socket: IODescriptor) -> Error?
 }
 
 // -------------------------------------
+/**
+ Read data from an object (ie file, socket, pipe, etc...) referenced by a
+ descriptor into a pre-allocated buffer.
+ 
+ The maximum number of bytes that will be read is determined by `buffer.count`,
+ so `buffer` should be initialized to the desired number elements prior to
+ calling this function. Use `Data(repeating: 0, count: n)` *not*
+ `Data(capacity: n)`)
+ 
+ The system guarantees to read the number of bytes requested if the descriptor
+ references a normal file that has that many bytes left before the end-of-file,
+ but in no other case.
+ 
+ - Parameters:
+    - descriptor: The descriptor representing the object from which to read.
+    - buffer: a *pre-allocated* `Data` instance into which place the data.
+        - On entry, it's current `count` property will determine the maximum
+            number of bytes that will be read.
+        - On exit, it will contain the read data, *but it's `count` will not
+            have been modified.*  Use the returned number of bytes read to
+            determine how many of the bytes of `buffer` correspond to the data
+            read.
+ 
+ - Returns: On success, the returned `Result` will contain the number of bytes
+    read.  `0` indicates an attempt to read at the end-of-file.  On failure, the
+    returned `Result` will contain the error describing the reason for the
+    failure.
+ */
 @inlinable
 public func read(
-    _ socket: IODescriptor,
+    _ descriptor: IODescriptor,
     _ buffer: inout Data) -> Result<Int, Error>
 {
     assert(buffer.count > 0)
     
     return buffer.withUnsafeMutableBytes
     {
-        let bytesRead = read(
-            socket.descriptor,
+        let bytesRead = HostOS.read(
+            descriptor.descriptor,
             $0.baseAddress!,
             $0.count
+        )
+        return bytesRead == -1
+            ? .failure(Error())
+            : .success(bytesRead)
+    }
+}
+
+
+// -------------------------------------
+/**
+ Read data from an object (ie file, socket, pipe, etc...) referenced by a
+ descriptor into an array of pre-allocated buffers.
+ 
+ The array of buffers is sometimes referred to as a "scatter/gather" array.
+ Its elements are *pre-allocated* `Data` instances, which is to say that each
+ one must be initialized containing the desired number of bytes.  Use
+ `Data(repeating: 0, count: n)` *not* `Data(capacity: n)`)
+ 
+ The maximum number of bytes that will be read is determined by sum of all of
+ the sizes of the buffers in `buffers`.  Each buffer in the array will be
+ entirely filled before starting to fill the next one.
+ 
+ The system guarantees to read the number of bytes requested if the descriptor
+ references a normal file that has that many bytes left before the end-of-file,
+ but in no other case.
+ 
+ - Parameters:
+    - descriptor: The descriptor representing the object from which to read.
+    - buffers: an array of *pre-allocated* `Data` instances into which place
+        the data.
+        - On entry, the `count` property for each `Data` element of
+            `buffers` will determine the maximum number of bytes that will be
+            read into it before moving on to the next one.
+        - On exit, the buffers' `count` properties will not have been changed.
+            Use the returned number of bytes read, along with the sizes of each
+            buffer, to determine which buffers and how much of them contain the
+            read data.
+ 
+ - Returns: On success, the returned `Result` will contain the number of bytes
+    read.  `0` indicates an attempt to read at the end-of-file.  On failure, the
+    returned `Result` will contain the error describing the reason for the
+    failure.
+ */
+@inlinable
+public func readv(
+    _ descriptor: IODescriptor,
+    _ buffers: inout [Data]) -> Result<Int, Error>
+{
+    assert(buffers.count > 0)
+    
+    let iovecs = buffers.mutableIOVecs()
+    return iovecs.withUnsafeBufferPointer
+    {
+        let bytesRead:Int = HostOS.readv(
+            descriptor.descriptor,
+            $0.baseAddress!,
+            Int32($0.count)
         )
         return bytesRead == -1
             ? .failure(Error())
@@ -77,13 +162,13 @@ public func read(
 // -------------------------------------
 @inlinable
 public func write(
-    _ socket: IODescriptor,
+    _ descriptor: IODescriptor,
     _ buffer: Data) -> Result<Int, Error>
 {
     return buffer.withUnsafeBytes
     {
         let bytesWritten = write(
-            socket.descriptor,
+            descriptor.descriptor,
             $0.baseAddress!,
             $0.count
         )
