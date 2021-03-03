@@ -21,22 +21,14 @@
 import HostOS
 
 // -------------------------------------
-public protocol SocketAddress { }
-public extension SocketAddress
-{
-    @inlinable
-    static var byteSize: socklen_t {
-        return socklen_t(MemoryLayout<Self>.size)
-    }
-}
+public protocol HostOSSocketAddress { }
 
-extension sockaddr: SocketAddress { }
-extension sockaddr_in: SocketAddress { }
-extension sockaddr_in6: SocketAddress { }
-extension sockaddr_un: SocketAddress { }
+extension sockaddr_in: HostOSSocketAddress { }
+extension sockaddr_in6: HostOSSocketAddress { }
+extension sockaddr_un: HostOSSocketAddress { }
 
 // -------------------------------------
-public struct UniversalSocketAddress: SocketAddress
+public struct SocketAddress
 {
     // Storage should be the largest socket address type supported by host OS
     @usableFromInline internal typealias Storage = sockaddr_un
@@ -48,7 +40,7 @@ public struct UniversalSocketAddress: SocketAddress
     // -------------------------------------
     public var asINET4: sockaddr_in?
     {
-        guard IP4AddressFamily(rawValue: family) != nil else { return nil }
+        guard family == .inet4 else { return nil }
         return withPointer(to: storage, recastTo: sockaddr_in.self) {
             $0.pointee
         }
@@ -76,7 +68,7 @@ public struct UniversalSocketAddress: SocketAddress
     public init() { self.storage = Storage() }
     
     // -------------------------------------
-    public init<T: SocketAddress>(_ socketAddress: T)
+    public init<T: HostOSSocketAddress>(_ socketAddress: T)
     {
         self.storage = withPointer(to: socketAddress, recastTo: Storage.self)
         {
@@ -162,18 +154,21 @@ public extension sockaddr_in
     {
         get
         {
-            guard let family = NIX.IP4AddressFamily(rawValue: Int32(sin_family))
-            else { fatalError("Invalid IPv4 address family: \(sin_family)") }
+            precondition(
+                sin_family == AF_INET,
+                "Invalid IPv4 address family: \(sin_family)"
+            )
             
-            return family.rawValue
+            return AddressFamily(rawValue: Int32(sin_family))!
         }
         set
         {
-            guard let family = NIX.IP4AddressFamily(rawValue: newValue) else {
-                fatalError("Invalid IPv4 address family: \(newValue.rawValue)")
-            }
-            
-            sin_family = sa_family_t(family.rawValue.rawValue)
+            precondition(
+                newValue == .inet4,
+                "Invalid IPv4 address family: \(sin_family)"
+            )
+
+            sin_family = sa_family_t(newValue.rawValue)
         }
     }
     
@@ -278,54 +273,4 @@ public extension sockaddr_un
             }
         }
     }
-}
-
-// -------------------------------------
-/*
- Cretae an IPv4 socket address with the specified IP `address` and `port`.
- */
-@inlinable
-public func ip4SocketAddress(
-    for ip4Address: in_addr,
-    port: Int,
-    family: IP4AddressFamily = .inet4) -> sockaddr_in
-{
-    var sAddr = sockaddr_in()
-    
-    sAddr.sin_len = __uint8_t(sockaddr_in.byteSize)
-    sAddr.family = family.rawValue
-    sAddr.sin_addr = ip4Address
-    sAddr.port = port
-    
-    return sAddr
-}
-
-// -------------------------------------
-@inlinable
-public func ip6SocketAddress(
-    for ip6Address: in6_addr,
-    port: Int) -> sockaddr_in6
-{
-    var sAddr = sockaddr_in6()
-    
-    sAddr.sin6_len = __uint8_t(sockaddr_in6.byteSize)
-    sAddr.sin6_flowinfo = 0
-    sAddr.family = .inet6
-    sAddr.sin6_addr = ip6Address
-    sAddr.port = port
-    
-    return sAddr
-}
-
-// -------------------------------------
-@inlinable
-public func unixDomainSocketAddress(for path: UnixSocketPath) -> sockaddr_un
-{
-    var sAddr = sockaddr_un()
-    
-    sAddr.sun_len = __uint8_t(sockaddr_un.byteSize)
-    sAddr.family = .unix
-    sAddr.path = path
-    
-    return sAddr
 }

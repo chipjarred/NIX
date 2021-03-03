@@ -25,17 +25,29 @@ public enum AddressFamily
 {
     public typealias RawValue = Int32
     
-    /// unspecified
-    case unspecified
-    
+    // MARK:- Supported Address Families
+    // -------------------------------------
     /// local to host (pipes)
     case unix
     
     /// backward compatibility
-    case local
-    
+    @inlinable public var local: Self { .unix }
+
     /// internetwork: UDP, TCP, etc.
     case inet4
+    
+    /// IPv6
+    case inet6
+
+    // MARK:- Unsupported Address Families
+    // -------------------------------------
+    /*
+     These are defined in Darwin, but NIX doesn't currently handle them.
+     This list is left here for reference, if support for one or more of the
+     currently unsupported address families is later added.
+     
+    /// unspecified
+    case unspecified
     
     /// arpanet imp addresses
     case arpaIMP
@@ -121,9 +133,6 @@ public enum AddressFamily
     /// Internal key-management function
     case internalKeyManagement
     
-    /// IPv6
-    case inet6
-    
     /// native ATM access
     case nativeATMAccess
     
@@ -144,16 +153,20 @@ public enum AddressFamily
     
     /// User tunnel acts as glue between kernel control sockets and network interfaces
     case userTunnel
+    */
 
     // -------------------------------------
     public init?(rawValue: Int32)
     {
         switch rawValue
         {
-            case HostOS.AF_UNSPEC          : self = .unspecified
             case HostOS.AF_UNIX            : self = .unix
-            case HostOS.AF_LOCAL           : self = .local
+            case HostOS.AF_LOCAL           : self = .unix // self = .local
             case HostOS.AF_INET            : self = .inet4
+            case HostOS.AF_INET6           : self = .inet6
+
+            /* Current unsupported in NIX
+            case HostOS.AF_UNSPEC          : self = .unspecified
             case HostOS.AF_IMPLINK         : self = .arpaIMP
             case HostOS.AF_PUP             : self = .pup
             case HostOS.AF_CHAOS           : self = .mitCHAOS
@@ -182,7 +195,6 @@ public enum AddressFamily
             case HostOS.AF_ISDN            : self = .isdn
             case HostOS.AF_E164            : self = .ccittE164
             case HostOS.pseudo_AF_KEY      : self = .internalKeyManagement
-            case HostOS.AF_INET6           : self = .inet6
             case HostOS.AF_NATM            : self = .nativeATMAccess
             case HostOS.AF_SYSTEM          : self = .system
             case HostOS.AF_NETBIOS         : self = .netBIOS
@@ -190,6 +202,7 @@ public enum AddressFamily
             case HostOS.pseudo_AF_HDRCMPLT : self = .pseudo_AF_HDRCMPLT
             case HostOS.AF_IEEE80211       : self = .ieee802_11
             case HostOS.AF_UTUN            : self = .userTunnel
+            */
                 
             default: return nil
         }
@@ -200,10 +213,12 @@ public enum AddressFamily
     {
         switch self
         {
-            case .unspecified               : return HostOS.AF_UNSPEC
             case .unix                      : return HostOS.AF_UNIX
-            case .local                     : return HostOS.AF_LOCAL
             case .inet4                     : return HostOS.AF_INET
+            case .inet6                     : return HostOS.AF_INET6
+                
+            /* Current unsupported in NIX
+            case .unspecified               : return HostOS.AF_UNSPEC
             case .arpaIMP                   : return HostOS.AF_IMPLINK
             case .pup                       : return HostOS.AF_PUP
             case .mitCHAOS                  : return HostOS.AF_CHAOS
@@ -232,7 +247,6 @@ public enum AddressFamily
             case .isdn                      : return HostOS.AF_ISDN
             case .ccittE164                 : return HostOS.AF_E164
             case .internalKeyManagement     : return HostOS.pseudo_AF_KEY
-            case .inet6                     : return HostOS.AF_INET6
             case .nativeATMAccess           : return HostOS.AF_NATM
             case .system                    : return HostOS.AF_SYSTEM
             case .netBIOS                   : return HostOS.AF_NETBIOS
@@ -240,6 +254,7 @@ public enum AddressFamily
             case .pseudo_AF_HDRCMPLT        : return HostOS.pseudo_AF_HDRCMPLT
             case .ieee802_11                : return HostOS.AF_IEEE80211
             case .userTunnel                : return HostOS.AF_UTUN
+            */
         }
     }
 }

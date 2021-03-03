@@ -152,11 +152,10 @@ public func socket(
 @inlinable
 public func bind(
     _ socket: SocketIODescriptor,
-    _ address: UniversalSocketAddress) -> Error?
+    _ address: SocketAddress) -> Error?
 {
     return address.withGenericPointer
     {
-        let x = $0.pointee
         let result = HostOS.bind(
             socket.descriptor,
             $0,
@@ -247,12 +246,12 @@ public func listen(
 @inlinable
 public func accept(
     _ socket: SocketIODescriptor,
-    _ remoteAddress: inout UniversalSocketAddress)
+    _ remoteAddress: inout SocketAddress)
         -> Result<SocketDescriptor, Error>
 {
     return remoteAddress.withMutableGenericPointer
     {
-        var outSize = UInt32(MemoryLayout<UniversalSocketAddress>.size)
+        var outSize = UInt32(MemoryLayout<SocketAddress>.size)
         let result = HostOS.accept(
             socket.descriptor,
             $0,
@@ -298,7 +297,7 @@ public func accept(
 @inlinable
 public func connect(
     _ socket: SocketIODescriptor,
-    _ remoteAddress: UniversalSocketAddress) -> Error?
+    _ remoteAddress: SocketAddress) -> Error?
 {
     remoteAddress.withGenericPointer
     {
@@ -391,7 +390,7 @@ public func recvfrom(
     _ socket: SocketIODescriptor,
     _ buffer: inout Data,
     _ flags: RecvFlags,
-    _ remoteAddress: inout UniversalSocketAddress) -> Result<Int, Error>
+    _ remoteAddress: inout SocketAddress) -> Result<Int, Error>
 {
     assert(buffer.count > 0)
     
@@ -399,7 +398,7 @@ public func recvfrom(
     { buffer in
         return remoteAddress.withMutableGenericPointer
         { remoteAddrPtr in
-            var outSize = UInt32(MemoryLayout<UniversalSocketAddress>.size)
+            var outSize = UInt32(MemoryLayout<SocketAddress>.size)
             let bytesRead = recvfrom(
                 socket.descriptor,
                 buffer.baseAddress!,

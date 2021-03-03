@@ -49,7 +49,7 @@ final class NIXTests: XCTestCase
             }
         }
         
-        let serverAddress = UniversalSocketAddress(ip4Address: .loopback, port: serverPort)
+        let serverAddress = SocketAddress(ip4Address: .loopback, port: serverPort)
         
         if let error = NIX.connect(socket, serverAddress)
         {
@@ -123,7 +123,7 @@ final class NIXTests: XCTestCase
         }
         
         let serverAddress =
-            UniversalSocketAddress(ip6Address: in6_addr.loopback, port: serverPort)
+            SocketAddress(ip6Address: in6_addr.loopback, port: serverPort)
         
         if let error = NIX.connect(socket, serverAddress)
         {
@@ -218,7 +218,7 @@ final class NIXTests: XCTestCase
             return
         }
         
-        let serverAddress = UniversalSocketAddress(unixPath: unixPath)
+        let serverAddress = SocketAddress(unixPath: unixPath)
         
         if let error = NIX.connect(socket, serverAddress)
         {

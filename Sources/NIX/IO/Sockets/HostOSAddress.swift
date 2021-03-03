@@ -21,11 +21,11 @@
 import HostOS
 
 // -------------------------------------
-public protocol Address { }
+public protocol HostOSAddress { }
 
 // MARK:- IPv4
 // -------------------------------------
-extension in_addr: Address { }
+extension in_addr: HostOSAddress { }
 
 // -------------------------------------
 public extension in_addr
@@ -39,7 +39,7 @@ public extension in_addr
 
 // MARK:- IPv6
 // -------------------------------------
-extension in6_addr: Address { }
+extension in6_addr: HostOSAddress { }
 
 // -------------------------------------
 public extension in6_addr

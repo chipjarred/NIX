@@ -36,6 +36,8 @@ public enum SocketDomain: Int32
     /// Internet version 6 protocols
     case inet6
     
+    /* Unsupported by NIX
+     These are defined in Darwin, but NIX doesn't currently support them
     /// Internal Routing protocol
     case route
     
@@ -47,6 +49,7 @@ public enum SocketDomain: Int32
     
     /// Raw access to network device
     case rawNetworkDevice
+    */
     
     // -------------------------------------
     public init?(rawValue: Int32)
@@ -56,10 +59,13 @@ public enum SocketDomain: Int32
             case PF_LOCAL  : self = .local
             case PF_INET   : self = .inet4
             case PF_INET6  : self = .inet6
+                
+            /* Unsupported
             case PF_ROUTE  : self = .route
             case PF_KEY    : self = .key
             case PF_SYSTEM : self = .system
             case PF_NDRV   : self = .rawNetworkDevice
+            */
                 
             default: return nil
         }
@@ -74,10 +80,13 @@ public enum SocketDomain: Int32
             case .unix            : return PF_LOCAL
             case .inet4           : return PF_INET
             case .inet6           : return PF_INET6
+                
+            /* Unsupported
             case .route           : return PF_ROUTE
             case .key             : return PF_KEY
             case .system          : return PF_SYSTEM
             case .rawNetworkDevice: return PF_NDRV
+            */
         }
     }
 }

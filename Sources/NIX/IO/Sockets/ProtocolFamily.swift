@@ -23,9 +23,27 @@ import HostOS
 // -------------------------------------
 public enum ProtocolFamily: Int32
 {
+    // MARK:- Supported Protocol Families
+    // -------------------------------------
     /// dummy for IP
     case ip
     
+    /// IPv4 encapsulation
+    case ip4
+    
+    /// tcp
+    case tcp
+    
+    /// user datagram protocol
+    case udp
+
+    /// IP6 header
+    case ipv6
+
+    // MARK:- Unsupported Protocol Families
+    // -------------------------------------
+    /* Rename to an appropriately descriptive, Swifty name when adding support
+     
     /// IP6 hop-by-hop options
     case IPPROTO_HOPOPTS
     
@@ -38,14 +56,8 @@ public enum ProtocolFamily: Int32
     /// gateway^2 (deprecated)
     case IPPROTO_GGP
     
-    /// IPv4 encapsulation
-    case ip4
-    
     /// for compatibility
     case IPPROTO_IPIP
-    
-    /// tcp
-    case tcp
     
     /// Stream protocol II
     case IPPROTO_ST
@@ -76,9 +88,6 @@ public enum ProtocolFamily: Int32
     
     /// Chaos
     case IPPROTO_CHAOS
-    
-    /// user datagram protocol
-    case udp
     
     /// Multiplexing
     case IPPROTO_MUX
@@ -148,9 +157,6 @@ public enum ProtocolFamily: Int32
     
     /// IL transport protocol
     case IPPROTO_IL
-    
-    /// IP6 header
-    case ipv6
     
     /// Source Demand Routing
     case IPPROTO_SDRP
@@ -337,6 +343,7 @@ public enum ProtocolFamily: Int32
     
     /// raw IP packet
     case raw
+    */
 
     // -------------------------------------
     public init?(rawValue: Int32)
@@ -344,13 +351,17 @@ public enum ProtocolFamily: Int32
         switch rawValue
         {
             case HostOS.IPPROTO_IP        : self = .ip
+            case HostOS.IPPROTO_IPV4      : self = .ip4
+            case HostOS.IPPROTO_TCP       : self = .tcp
+            case HostOS.IPPROTO_UDP       : self = .udp
+            case HostOS.IPPROTO_IPV6      : self = .ipv6
+
+            /* Unsupported currently in NIX
             case HostOS.IPPROTO_HOPOPTS   : self = .IPPROTO_HOPOPTS
             case HostOS.IPPROTO_ICMP      : self = .IPPROTO_ICMP
             case HostOS.IPPROTO_IGMP      : self = .IPPROTO_IGMP
             case HostOS.IPPROTO_GGP       : self = .IPPROTO_GGP
-            case HostOS.IPPROTO_IPV4      : self = .ip4
             case HostOS.IPPROTO_IPIP      : self = .IPPROTO_IPIP
-            case HostOS.IPPROTO_TCP       : self = .tcp
             case HostOS.IPPROTO_ST        : self = .IPPROTO_ST
             case HostOS.IPPROTO_EGP       : self = .IPPROTO_EGP
             case HostOS.IPPROTO_PIGP      : self = .IPPROTO_PIGP
@@ -361,7 +372,6 @@ public enum ProtocolFamily: Int32
             case HostOS.IPPROTO_EMCON     : self = .IPPROTO_EMCON
             case HostOS.IPPROTO_XNET      : self = .IPPROTO_XNET
             case HostOS.IPPROTO_CHAOS     : self = .IPPROTO_CHAOS
-            case HostOS.IPPROTO_UDP       : self = .udp
             case HostOS.IPPROTO_MUX       : self = .IPPROTO_MUX
             case HostOS.IPPROTO_MEAS      : self = .IPPROTO_MEAS
             case HostOS.IPPROTO_HMP       : self = .IPPROTO_HMP
@@ -385,7 +395,6 @@ public enum ProtocolFamily: Int32
             case HostOS.IPPROTO_CMTP      : self = .IPPROTO_CMTP
             case HostOS.IPPROTO_TPXX      : self = .IPPROTO_TPXX
             case HostOS.IPPROTO_IL        : self = .IPPROTO_IL
-            case HostOS.IPPROTO_IPV6      : self = .ipv6
             case HostOS.IPPROTO_SDRP      : self = .IPPROTO_SDRP
             case HostOS.IPPROTO_ROUTING   : self = .IPPROTO_ROUTING
             case HostOS.IPPROTO_FRAGMENT  : self = .IPPROTO_FRAGMENT
@@ -448,6 +457,7 @@ public enum ProtocolFamily: Int32
             case HostOS.IPPROTO_SCTP      : self = .IPPROTO_SCTP
             case HostOS.IPPROTO_DIVERT    : self = .IPPROTO_DIVERT
             case HostOS.IPPROTO_RAW       : self = .raw
+            */
                 
             default: return nil
         }
@@ -459,13 +469,17 @@ public enum ProtocolFamily: Int32
         switch self
         {
             case .ip                : return HostOS.IPPROTO_IP
+            case .ip4               : return HostOS.IPPROTO_IPV4
+            case .tcp               : return HostOS.IPPROTO_TCP
+            case .udp               : return HostOS.IPPROTO_UDP
+            case .ipv6              : return HostOS.IPPROTO_IPV6
+
+            /* Unsupported currently in NIX
             case .IPPROTO_HOPOPTS   : return HostOS.IPPROTO_HOPOPTS
             case .IPPROTO_ICMP      : return HostOS.IPPROTO_ICMP
             case .IPPROTO_IGMP      : return HostOS.IPPROTO_IGMP
             case .IPPROTO_GGP       : return HostOS.IPPROTO_GGP
-            case .ip4               : return HostOS.IPPROTO_IPV4
             case .IPPROTO_IPIP      : return HostOS.IPPROTO_IPIP
-            case .tcp               : return HostOS.IPPROTO_TCP
             case .IPPROTO_ST        : return HostOS.IPPROTO_ST
             case .IPPROTO_EGP       : return HostOS.IPPROTO_EGP
             case .IPPROTO_PIGP      : return HostOS.IPPROTO_PIGP
@@ -476,7 +490,6 @@ public enum ProtocolFamily: Int32
             case .IPPROTO_EMCON     : return HostOS.IPPROTO_EMCON
             case .IPPROTO_XNET      : return HostOS.IPPROTO_XNET
             case .IPPROTO_CHAOS     : return HostOS.IPPROTO_CHAOS
-            case .udp               : return HostOS.IPPROTO_UDP
             case .IPPROTO_MUX       : return HostOS.IPPROTO_MUX
             case .IPPROTO_MEAS      : return HostOS.IPPROTO_MEAS
             case .IPPROTO_HMP       : return HostOS.IPPROTO_HMP
@@ -500,7 +513,6 @@ public enum ProtocolFamily: Int32
             case .IPPROTO_CMTP      : return HostOS.IPPROTO_CMTP
             case .IPPROTO_TPXX      : return HostOS.IPPROTO_TPXX
             case .IPPROTO_IL        : return HostOS.IPPROTO_IL
-            case .ipv6              : return HostOS.IPPROTO_IPV6
             case .IPPROTO_SDRP      : return HostOS.IPPROTO_SDRP
             case .IPPROTO_ROUTING   : return HostOS.IPPROTO_ROUTING
             case .IPPROTO_FRAGMENT  : return HostOS.IPPROTO_FRAGMENT
@@ -563,6 +575,7 @@ public enum ProtocolFamily: Int32
             case .IPPROTO_SCTP      : return HostOS.IPPROTO_SCTP
             case .IPPROTO_DIVERT    : return HostOS.IPPROTO_DIVERT
             case .raw               : return HostOS.IPPROTO_RAW
+            */
         }
     }
 }

@@ -37,7 +37,7 @@ import HostOS
     represented as a `String`.   On failure, it contains the `Error`.
  */
 @inlinable
-public func inet_ntop<IPAddress: Address>(
+public func inet_ntop<IPAddress: HostOSAddress>(
     _ addressFamily: AddressFamily,
     _ address: IPAddress) -> Result<String, Error>
 {
@@ -49,7 +49,7 @@ public func inet_ntop<IPAddress: Address>(
         return withUnsafeBytes(of: address)
         { addressPtr in
             let p = inet_ntop(
-                AF_INET6,
+                addressFamily.rawValue,
                 addressPtr.baseAddress!,
                 bufferPtr.baseAddress!,
                 socklen_t(bufferPtr.count)

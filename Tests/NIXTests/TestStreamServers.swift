@@ -85,12 +85,12 @@ class StreamServer
     }
     
     // -------------------------------------
-    func makeServerSocketAddressForClient() -> UniversalSocketAddress {
+    func makeServerSocketAddressForClient() -> SocketAddress {
         fatalError("Override me!: \(#function)")
     }
     
     // -------------------------------------
-    func makeServerSocketAddressForServer() -> UniversalSocketAddress {
+    func makeServerSocketAddressForServer() -> SocketAddress {
         fatalError("Override me!: \(#function)")
     }
     
@@ -149,7 +149,7 @@ class StreamServer
 
             while true
             {
-                var peerAddress = UniversalSocketAddress()
+                var peerAddress = SocketAddress()
                 var peerSocket: SocketIODescriptor
                 switch NIX.accept(listenSocket, &peerAddress)
                 {
@@ -182,7 +182,7 @@ class StreamServer
     // -------------------------------------
     private func handlePeerSession(
         with peerSocket: SocketIODescriptor,
-        peerAddress: UniversalSocketAddress)
+        peerAddress: SocketAddress)
     {
         defer { _ = NIX.close(peerSocket) }
         
@@ -262,13 +262,13 @@ class IP4TestStreamServer: StreamServer
     }
     
     // -------------------------------------
-    override func makeServerSocketAddressForClient() -> UniversalSocketAddress {
-        return UniversalSocketAddress(ip4Address: in_addr.loopback, port: port)
+    override func makeServerSocketAddressForClient() -> SocketAddress {
+        return SocketAddress(ip4Address: in_addr.loopback, port: port)
     }
     
     // -------------------------------------
-    override func makeServerSocketAddressForServer() -> UniversalSocketAddress {
-        return UniversalSocketAddress(ip4Address: in_addr.any, port: port)
+    override func makeServerSocketAddressForServer() -> SocketAddress {
+        return SocketAddress(ip4Address: in_addr.any, port: port)
     }
 }
 
@@ -292,13 +292,13 @@ class IP6TestStreamServer: StreamServer
     }
     
     // -------------------------------------
-    override func makeServerSocketAddressForClient() -> UniversalSocketAddress {
-        return UniversalSocketAddress(ip6Address: in6_addr.loopback, port: port)
+    override func makeServerSocketAddressForClient() -> SocketAddress {
+        return SocketAddress(ip6Address: in6_addr.loopback, port: port)
     }
     
     // -------------------------------------
-    override func makeServerSocketAddressForServer() -> UniversalSocketAddress {
-        return UniversalSocketAddress(ip6Address: in6_addr.any, port: port)
+    override func makeServerSocketAddressForServer() -> SocketAddress {
+        return SocketAddress(ip6Address: in6_addr.any, port: port)
     }
 }
 
@@ -321,12 +321,12 @@ class UnixDomainTestStreamServer: StreamServer
     }
     
     // -------------------------------------
-    override func makeServerSocketAddressForClient() -> UniversalSocketAddress {
-        return UniversalSocketAddress(unixPath: path)
+    override func makeServerSocketAddressForClient() -> SocketAddress {
+        return SocketAddress(unixPath: path)
     }
     
     // -------------------------------------
-    override func makeServerSocketAddressForServer() -> UniversalSocketAddress {
-        return UniversalSocketAddress(unixPath: path)
+    override func makeServerSocketAddressForServer() -> SocketAddress {
+        return SocketAddress(unixPath: path)
     }
 }
