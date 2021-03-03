@@ -330,8 +330,8 @@ public func read(
  
  - Parameters:
     - descriptor: The descriptor representing the object from which to read.
-    - buffers: an array of *pre-allocated* `Data` instances into which place
-        the data.
+    - buffers: an array of *pre-allocated* `Data` instances into which the data
+        is to be placed.
         - On entry, the `count` property for each `Data` element of
             `buffers` will determine the maximum number of bytes that will be
             read into it before moving on to the next one.
