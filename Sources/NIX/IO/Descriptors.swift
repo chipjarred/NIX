@@ -29,6 +29,15 @@ public protocol IODescriptor {
 
 // MARK:- General BSDescriptor I/O
 // -------------------------------------
+/**
+ Close the object (ie. file, pipe, socket, etc...) associated with `discriptor.`
+ 
+ - Parameter descriptor: An `IODescriptor` associated with the object to be
+    closed.
+ 
+ - Returns: On success, `nil` is returned.  On failure, the `Error` descibing
+    the resason for the failure is returned.
+ */
 @inlinable
 public func close(_ descriptor: IODescriptor) -> Error?
 {
