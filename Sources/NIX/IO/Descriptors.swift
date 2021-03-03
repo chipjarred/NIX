@@ -160,6 +160,18 @@ public func readv(
 }
 
 // -------------------------------------
+/**
+ Write the bytes in `buffer` to the object (ie. file, socket, pipe, etc...)
+ referenced by `descriptor`.
+ 
+ - Parameters:
+    - descriptor: The descriptor for the object to be written to.
+    - buffer: `Data` instance containing the data to be written.
+ 
+ - Returns: On success, the returned `Result` contains the number of bytes
+    written.  On failure, it contains the `Error` describing the reason for
+    the failure.
+ */
 @inlinable
 public func write(
     _ descriptor: IODescriptor,
@@ -179,6 +191,22 @@ public func write(
 }
 
 // -------------------------------------
+/**
+ Write the bytes from an array of buffers to the object (ie. file, socket,
+ pipe, etc...)  referenced by `descriptor`.
+ 
+ Each buffer in `buffers` is written in its entirety before starting to write
+ the next one.  The effect is the same as concatenating their contents, and
+ writing the resulting concatenation.
+ 
+ - Parameters:
+    - descriptor: The descriptor for the object to be written to.
+    - buffers: An array of `Data` instances containing the data to be written.
+ 
+ - Returns: On success, the returned `Result` contains the number of bytes
+    written.  On failure, it contains the `Error` describing the reason for
+    the failure.
+ */
 @inlinable
 public func writev(
     _ descriptor: IODescriptor,
