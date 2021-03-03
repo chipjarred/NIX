@@ -24,7 +24,7 @@ import Foundation
 func echoServerExample()
 {
     let listenSocket = setUpListenerSocket(onPort: 2020)
-    defer { _ = close(listenSocket) }
+    defer { _ = NIX.close(listenSocket) }
 
     print("Echo server started...")
 
