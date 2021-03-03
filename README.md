@@ -12,21 +12,21 @@ At the moment `NIX` mostly centers around socket functionality, but the intentio
 
 ## Design
 
-One of the core principles of NIX is to maintain, as much as possible, the POSIX.1 interface, while improving type-safety and error handling to prevent common mistakes.  Those improvements require altering the interface somewhat, but it should feel famliiar with anyone familiar with POSIX.1.
+One of the core principles of NIX is to maintain, as much as possible, the POSIX.1 interface, while improving type-safety and error handling to prevent common mistakes.  Those improvements require altering the interface somewhat, so NIX is not just a drop-in overlay over POSIX.1, but it should feel familiar with Swift programmer familiar with POSIX.1 in C, making it easy to adopt.
 
 NIX adopts some consistent standards to accomplish this
 
 ### Error Handling
 
-POSIX.1, intended for use in the C programming language, handles errors by overloading the meaning of the return value if it has certain values.  Functions that return pointers indicate failure by returning `NULL`, which numerically is `0` in C.  On the other hand, functions that return integers, indicate failure by returning `-1`, which is `~0` in C... exactly the inverse of the pointer return.  Furthermore, functions whose integer return value is just a boolean success or fail, return `0` to indicate success, and `-1` to indicate failure.  While this makes sense given the constraints of using integers for the return value, it is counter-intuitive.  Normally `0` is `FALSE` which one would naturally associate with failure and non-zero is `TRUE` which one would naturally assocate with success. 
+POSIX.1, intended for use in the C programming language, handles errors by overloading the meaning of the return value if it has certain values, and setting a global `errno` for that exact error.  Functions that return pointers indicate failure by returning `NULL`, which numerically is `0` in C.  On the other hand, functions that return integers, indicate failure by returning `-1`, which is `~0` in C... exactly the inverse of the pointer return.  Furthermore, functions whose integer return value is just a boolean success or fail, return `0` to indicate success, and `-1` to indicate failure.  While this makes sense given the constraints of using integers for the return value, it is counter-intuitive.  Normally `0` is `FALSE` which one would naturally associate with failure, and non-zero is normally `TRUE` which one would naturally assocate with success. 
 
-In addition it's easy for the naive programmer (or even an experienced one who isn't having a good day) to forget to check for errors, both because C doesn't require using returned values, and because the error indicator is of the same type as the normal, successful return value.
+In addition it's easy for the naive programmer, or even an experienced one who isn't having a good day, to forget to check for errors, both because C doesn't require using returned values, and because the error indicator is of the same type as the normal, successful return value.  The compiler can't tell the difference.
 
-In both cases, if an error occurs, one has to check the global `errno` value to get the actual error.
+And if an error occurs, one has to check the global `errno` value to get the actual error.
 
 You can see why this is error-prone.
 
-NIX divides these into two categories:
+NIX uses Swift's features to overcome these deficienciy and divides these into two categories:
     - Functions that simply return success or failure
     - Functions that return a value that use a special value to indicate an failure, otherwise it's a success.
     
@@ -35,7 +35,7 @@ In both cases, NIX explicitly returns an `NIX.Error`, which already contains the
 `NIX.Error` conforms both to Swift's `Error` protocol, and to `CustomStringConvertible` which obtains the error description internally by calling the POSIX `strerror()` function.
     
 #### Success or Fail Functions
-For functions whose return value serves no purpose other than to indicate success or failure, NIX returns a `NIX.Error?`.  This makes it obvious that `nil` indicates "no error" (ie. success) and immediate provides the error on failure.  For example:
+For functions whose return value serves no purpose other than to indicate success or failure, NIX returns a `NIX.Error?`.  This makes it obvious that `nil` indicates "no error" (ie. success) and immediately provides the error on failure.  For example:
 
 ```swift
 if let error = NIX.close(file) {
@@ -44,7 +44,7 @@ if let error = NIX.close(file) {
 ```
 
 #### Value or Error functions
-Functions that return a value that on success means some thing other than merely success return a Swift `Result<Value, NIX.Error>`, where `Value` is the type of the value being returned on success.  For example:
+Functions that, on success,  return a value that means something other than merely success return a Swift `Result<Value, NIX.Error>`, where `Value` is the type of the value being returned on success.  For example:
 
 ```swift
 let file: FileDescriptor
@@ -63,11 +63,19 @@ And yet sometimes the `ints` that represent different things are interchangeable
 
 We'd like the compiler to help us sort this stuff out at compile-time, and that comes down to creating distinct types for the different meanings, so that is exactly what NIX does.  
 
-For example, NIX defines distinct `FileDescriptor` and `SocketDescriptor` types. For example, since `NIX.bind()` only accepts a `SocketDescriptor` and `NIX.open()` only returns a `FileDescriptor`, the compiler won't let you use the value returned by `open()` in a call to `bind()`.  But `NIX.close()` accepts any `IODescriptor`, a protocol to which both `SocketDescriptor` and `FileDescriptor` conform, so it can accept either.
+For example, NIX defines distinct `FileDescriptor` and `SocketDescriptor` types. Since `NIX.bind()` only accepts a `SocketDescriptor`, and `NIX.open()` only returns a `FileDescriptor`, the compiler won't let you use the value returned by `NIX.open()` in a call to `NIX.bind()`.  But `NIX.close()` accepts any `IODescriptor`, a protocol to which both `SocketDescriptor` and `FileDescriptor` conform, so it can accept either.
 
-Additionally NIX uses distinct `enum` types for mutually exclusive options (for example setting a socket domain).  Each call uses a specific type for such options.  That helps you in two ways.  The first is that you can't use an invalid option for the function.  The second is that IDE autocompletion helps you discover what the valid options are.  Additionally, NIX deviates from the POSIX naming on options to give them more meaningful names.  For example POSIX's `O_RDWR` is `.readWrite`.   
+Additionally NIX uses distinct `enum` types for mutually exclusive options (for example setting a socket domain).  Each function uses a specific type for its options.  That helps you in two ways.  The first is that you can't use an invalid option for the function.  The second is that IDE autocompletion helps you discover what the valid options are.  Additionally, NIX deviates from the POSIX naming for options to give them more meaningful names.  For example POSIX's `O_RDWR` is `.readWrite`.   
 
-Another overloaded use of `int` in POSIX is for option flags that can be combined with bitwise-OR, and normally only a subset of the bits are meaningful.  Swift handles this by providing specific types that conform to `OptionSet`.  You can bitwise-OR them together just as you would with the POSIX flags, but invalid bits are automatically filtered out.  Often only a subset of the bits are valid for use in a particular function.  For example while `chmod()` allows a set of flags that includes `S_ISVTX`, which becomes `.saveSwappedText` in NIX, that particular bit is *not* valid for `open()` when creating a file.  NIX defines separate types for these, so `NIX.chmod()` (*not currently implemented*) uses `FileAccessMode`, while `open` uses `OpenFileAccessMode`  which does not incude the `.saveSwappedText` option, so you can't use it thinking it will work, and then have to dig to `man` pages to find out that it doesn't.
+Another overloaded use of `int` in POSIX is for option flags that can be combined with bitwise-OR, and normally only a subset of the bits are meaningful.  Swift handles this by providing specific types that conform to `OptionSet`.  You can bitwise-OR them together just as you would with the POSIX flags, but invalid bits are automatically filtered out.  Alternatively you can use the typical `OptionSet` array syntax to combine them as is common in Cocoa.  Often only a subset of the bits are valid for use in a particular function.  For example while `chmod()` allows a set of flags that includes `S_ISVTX`, which becomes `.saveSwappedText` in NIX, that particular bit is *not* valid for `open()` when creating a file.  NIX defines separate types for these, so `NIX.chmod()` (*not currently implemented*) uses `FileAccessMode`, while `open` uses `OpenFileAccessMode`  which does not incude the `.saveSwappedText` option, so you can't use it thinking it will work, and then have to dig to `man` pages to find out that it doesn't.
+
+The `NIX.open()` example provides another type of safety NIX introduces.  The POSIX definition for that function allows an `O_CREAT` flag to be set in order to create a file, and the `mode` parameter is only required if that bit is set.  So opening a file with the same POSIX function requires only three parameters when not creating the file, and requires four parameters when creating the file.  NIX avoids that confusion by excluding creation bit from `NIX.open(_:_:_:)`'s flags, and instead provides an alternate version, `NIX.open(_:_:_:create:)` to use for file creation.  The same approach is taken for `NIX.openat(_:_:_:_:)`.  Both also separate the read/write access options from the other flags by using a different type for them in a separate parameter.
+
+### Eliminating Pointer Parameters
+
+Obviously one expects a C-based interface, as POSIX.1 is, to use pointers.  Unfortunately, pointers open up tons of opportunities for errors.  NIX has to use pointers to interact with the underlying POSIX API, but it tries to avoid exposing those pointers to the caller, so you can write your Swift code without worrying about those details.  Besides, while Swift does provide pointers in the `Unsafe...Pointer` family of types, those are especially awkward to use, and that's by design.  The language is attempting to discourage their use, while acknowledging that sometimes they are necessary.  Also POSIX.1 provides for some functions, like `readv()` that use pointers in a way that would be exceedingly tricky to get right consistently in Swift.  NIX handles that detail for you.  For example, `NIX.readv()` takes an `inout` array of `Data` instances, and internally steals pointers to their data to build the `iovec` array that POSIX's `readv` expects.  In doing so, it has to use some normally unsafe techniques to defeat Swift's pointer type invalidation, and is only safe because it ensures that the pointers don't escape a scope in which they are known to be valid.  This achieves nearly the same performance as directly using `readv()` in C would have.  The same logical effect could have been achieved without the pointer stealing by emulating `readv` instead of using it directly, but that would require multiple calls to `read`, which would dramatically alter its performance.  NIX tries to do its job while maintaining a 1:1 ratio of NIX-to-POSIX calls.
+
+Where POSIX uses pointers to represent some arbitrary block of bytes, such as a read buffer, NIX uses Foundation's `Data` for the block of bytes, unless the block of bytes is supposed to be C string, in which case it uses a Swift `String`.  When the pointer is to a single `const` instance of a type, NIX uses a Swift value.  For pointers to single non-`const` values, NIX uses `inout` parameters.    Lastly, when the pointers are used for an array of some time, NIX uses a Swift `Array` with elements of that type. 
 
 # Example Code
 As an example, here's a simple echo server (IPv6) in all its POSIX-level glory, written using `NIX`:
