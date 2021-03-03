@@ -36,6 +36,125 @@ extension sockaddr_in6: SocketAddress { }
 extension sockaddr_un: SocketAddress { }
 
 // -------------------------------------
+public struct UniversalSocketAddress: SocketAddress
+{
+    // Storage should be the largest socket address type supported by host OS
+    @usableFromInline internal typealias Storage = sockaddr_un
+    @usableFromInline internal var storage: Storage
+    
+    public var family: AddressFamily { return storage.family }
+    public var len: UInt32 { return UInt32(storage.sun_len) }
+    
+    // -------------------------------------
+    public var asINET4: sockaddr_in?
+    {
+        guard IP4AddressFamily(rawValue: family) != nil else { return nil }
+        return withPointer(to: storage, recastTo: sockaddr_in.self) {
+            $0.pointee
+        }
+    }
+    
+    // -------------------------------------
+    public var asINET6: sockaddr_in6?
+    {
+        guard family == .inet6 else { return nil }
+        return withPointer(to: storage, recastTo: sockaddr_in6.self) {
+            $0.pointee
+        }
+    }
+    
+    // -------------------------------------
+    public var asUnix: sockaddr_un?
+    {
+        guard family == .unix else { return nil }
+        return withPointer(to: storage, recastTo: sockaddr_un.self) {
+            $0.pointee
+        }
+    }
+    
+    // -------------------------------------
+    public init() { self.storage = Storage() }
+    
+    // -------------------------------------
+    public init<T: SocketAddress>(_ socketAddress: T)
+    {
+        self.storage = withPointer(to: socketAddress, recastTo: Storage.self)
+        {
+            #if DEBUG
+            switch Int32($0.pointee.sun_family)
+            {
+                case AF_INET, AF_INET6, AF_UNIX: break
+                default: assertionFailure(
+                        "Unsupported address family: \($0.pointee.sun_family)"
+                    )
+            }
+            #endif
+            return $0.pointee
+        }
+    }
+    
+    // -------------------------------------
+    public init(ip4Address address: in_addr, port: Int)
+    {
+        var addr = sockaddr_in()
+        addr.sin_len = __uint8_t(MemoryLayout<sockaddr_in>.size)
+        addr.sin_family = sa_family_t(HostOS.AF_INET)
+        addr.sin_port = in_port_t(port).toNetworkByteOrder
+        addr.sin_addr = address
+        self.init(addr)
+    }
+    
+    // -------------------------------------
+    public init(ip6Address address: in6_addr, port: Int, flowInfo: UInt32 = 0)
+    {
+        var addr = sockaddr_in6()
+        addr.sin6_len = __uint8_t(MemoryLayout<sockaddr_in6>.size)
+        addr.sin6_family = sa_family_t(HostOS.AF_INET6)
+        addr.sin6_flowinfo = flowInfo
+        addr.sin6_port = in_port_t(port).toNetworkByteOrder
+        addr.sin6_addr = address
+        self.init(addr)
+    }
+    
+    // -------------------------------------
+    public init(unixPath path: UnixSocketPath)
+    {
+        var addr = sockaddr_un()
+        addr.sun_len = __uint8_t(MemoryLayout<sockaddr_un>.size)
+        addr.sun_family = sa_family_t(HostOS.AF_UNIX)
+        
+        path.rawValue.withCString
+        { src in
+            withUnsafeMutableBytes(of: &addr.sun_path)
+            {
+                let dst = $0.bindMemory(to: CChar.self)
+                strncpy(dst.baseAddress, src, dst.count)
+            }
+        }
+
+        self.init(addr)
+    }
+    
+    // -------------------------------------
+    @inlinable public func withGenericPointer<R>(
+        _ block: (UnsafePointer<sockaddr>) throws -> R) rethrows -> R
+    {
+        return try withPointer(to: storage, recastTo: sockaddr.self) {
+            return try block($0)
+        }
+    }
+    
+    // -------------------------------------
+    @inlinable public mutating func withMutableGenericPointer<R>(
+        _ block: (UnsafeMutablePointer<sockaddr>) throws -> R) rethrows -> R
+    {
+        return try withMutablePointer(to: &storage, recastTo: sockaddr.self) {
+            return try block($0)
+        }
+    }
+}
+
+// -------------------------------------
 public extension sockaddr_in
 {
     // -------------------------------------

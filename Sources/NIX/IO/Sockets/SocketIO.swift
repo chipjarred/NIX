@@ -150,16 +150,17 @@ public func socket(
 
  */
 @inlinable
-public func bind<SockAddr: SocketAddress>(
+public func bind(
     _ socket: SocketIODescriptor,
-    _ address: SockAddr) -> Error?
+    _ address: UniversalSocketAddress) -> Error?
 {
-    return withPointer(to: address, recastTo: sockaddr.self)
+    return address.withGenericPointer
     {
+        let x = $0.pointee
         let result = HostOS.bind(
             socket.descriptor,
             $0,
-            SockAddr.byteSize
+            address.len
         )
         return result == -1 ? Error() : nil
     }
@@ -244,13 +245,14 @@ public func listen(
     contain the `Error` describing the reason for the failure.
  */
 @inlinable
-public func accept<SockAddr: SocketAddress>(
+public func accept(
     _ socket: SocketIODescriptor,
-    _ remoteAddress: inout SockAddr) -> Result<SocketDescriptor, Error>
+    _ remoteAddress: inout UniversalSocketAddress)
+        -> Result<SocketDescriptor, Error>
 {
-    return withMutablePointer(to: &remoteAddress, recastTo: sockaddr.self)
+    return remoteAddress.withMutableGenericPointer
     {
-        var outSize = UInt32(SockAddr.byteSize)
+        var outSize = UInt32(MemoryLayout<UniversalSocketAddress>.size)
         let result = HostOS.accept(
             socket.descriptor,
             $0,
@@ -294,16 +296,16 @@ public func accept<SockAddr: SocketAddress>(
     describing the reason for the failure.
  */
 @inlinable
-public func connect<SockAddr: SocketAddress>(
+public func connect(
     _ socket: SocketIODescriptor,
-    _ remoteAddress: SockAddr) -> Error?
+    _ remoteAddress: UniversalSocketAddress) -> Error?
 {
-    return withPointer(to: remoteAddress, recastTo: sockaddr.self)
+    remoteAddress.withGenericPointer
     {
         let result = connect(
             socket.descriptor,
             $0,
-            SockAddr.byteSize
+            remoteAddress.len
         )
         return result == -1
             ? Error()
@@ -389,15 +391,15 @@ public func recvfrom(
     _ socket: SocketIODescriptor,
     _ buffer: inout Data,
     _ flags: RecvFlags,
-    _ remoteAddress: inout SocketAddress) -> Result<Int, Error>.Publisher
+    _ remoteAddress: inout UniversalSocketAddress) -> Result<Int, Error>
 {
     assert(buffer.count > 0)
     
     return buffer.withUnsafeMutableBytes
     { buffer in
-        return withMutablePointer(to: &remoteAddress, recastTo: sockaddr.self)
+        return remoteAddress.withMutableGenericPointer
         { remoteAddrPtr in
-            var outSize: UInt32
+            var outSize = UInt32(MemoryLayout<UniversalSocketAddress>.size)
             let bytesRead = recvfrom(
                 socket.descriptor,
                 buffer.baseAddress!,

@@ -36,9 +36,8 @@ extension DispatchSemaphore
 
 // MARK:-
 // -------------------------------------
-class StreamServer<SockAddressType: SocketAddress>
+class StreamServer
 {
-    typealias SockAddressType = SockAddressType
     let uuid = UUID()
     
     let serverQueue: DispatchQueue
@@ -86,12 +85,12 @@ class StreamServer<SockAddressType: SocketAddress>
     }
     
     // -------------------------------------
-    func makeServerSocketAddressForClient() -> SockAddressType {
+    func makeServerSocketAddressForClient() -> UniversalSocketAddress {
         fatalError("Override me!: \(#function)")
     }
     
     // -------------------------------------
-    func makeServerSocketAddressForServer() -> SockAddressType {
+    func makeServerSocketAddressForServer() -> UniversalSocketAddress {
         fatalError("Override me!: \(#function)")
     }
     
@@ -150,7 +149,7 @@ class StreamServer<SockAddressType: SocketAddress>
 
             while true
             {
-                var peerAddress = HostOS.sockaddr_in6()
+                var peerAddress = UniversalSocketAddress()
                 var peerSocket: SocketIODescriptor
                 switch NIX.accept(listenSocket, &peerAddress)
                 {
@@ -183,7 +182,7 @@ class StreamServer<SockAddressType: SocketAddress>
     // -------------------------------------
     private func handlePeerSession(
         with peerSocket: SocketIODescriptor,
-        peerAddress: sockaddr_in6)
+        peerAddress: UniversalSocketAddress)
     {
         defer { _ = NIX.close(peerSocket) }
         
@@ -245,7 +244,7 @@ class StreamServer<SockAddressType: SocketAddress>
 
 // MARK:-
 // -------------------------------------
-class IP4TestStreamServer: StreamServer<HostOS.sockaddr_in>
+class IP4TestStreamServer: StreamServer
 {
     let address: HostOS.in_addr
     let port: Int
@@ -263,19 +262,19 @@ class IP4TestStreamServer: StreamServer<HostOS.sockaddr_in>
     }
     
     // -------------------------------------
-    override func makeServerSocketAddressForClient() -> sockaddr_in {
-        return NIX.ip4SocketAddress(for: .loopback, port: port)
+    override func makeServerSocketAddressForClient() -> UniversalSocketAddress {
+        return UniversalSocketAddress(ip4Address: in_addr.loopback, port: port)
     }
     
     // -------------------------------------
-    override func makeServerSocketAddressForServer() -> sockaddr_in {
-        return NIX.ip4SocketAddress(for: .any, port: port)
+    override func makeServerSocketAddressForServer() -> UniversalSocketAddress {
+        return UniversalSocketAddress(ip4Address: in_addr.any, port: port)
     }
 }
 
 // MARK:-
 // -------------------------------------
-class IP6TestStreamServer: StreamServer<HostOS.sockaddr_in6>
+class IP6TestStreamServer: StreamServer
 {
     let address: HostOS.in6_addr
     let port: Int
@@ -289,23 +288,23 @@ class IP6TestStreamServer: StreamServer<HostOS.sockaddr_in6>
     
     // -------------------------------------
     override func makeSocket() -> Result<SocketIODescriptor, NIX.Error> {
-        return NIX.socket(.inet6, .stream, .tcp)
+        return NIX.socket(.inet6, .stream, .ip)
     }
     
     // -------------------------------------
-    override func makeServerSocketAddressForClient() -> sockaddr_in6 {
-        return NIX.ip6SocketAddress(for: .loopback, port: port)
+    override func makeServerSocketAddressForClient() -> UniversalSocketAddress {
+        return UniversalSocketAddress(ip6Address: in6_addr.loopback, port: port)
     }
     
     // -------------------------------------
-    override func makeServerSocketAddressForServer() -> sockaddr_in6 {
-        return NIX.ip6SocketAddress(for: .any, port: port)
+    override func makeServerSocketAddressForServer() -> UniversalSocketAddress {
+        return UniversalSocketAddress(ip6Address: in6_addr.any, port: port)
     }
 }
 
 // MARK:-
 // -------------------------------------
-class UnixDomainTestStreamServer: StreamServer<HostOS.sockaddr_un>
+class UnixDomainTestStreamServer: StreamServer
 {
     let path: NIX.UnixSocketPath
     
@@ -322,12 +321,12 @@ class UnixDomainTestStreamServer: StreamServer<HostOS.sockaddr_un>
     }
     
     // -------------------------------------
-    override func makeServerSocketAddressForClient() -> sockaddr_un {
-        return NIX.unixDomainSocketAddress(for: path)
+    override func makeServerSocketAddressForClient() -> UniversalSocketAddress {
+        return UniversalSocketAddress(unixPath: path)
     }
     
     // -------------------------------------
-    override func makeServerSocketAddressForServer() -> sockaddr_un {
-        return NIX.unixDomainSocketAddress(for: path)
+    override func makeServerSocketAddressForServer() -> UniversalSocketAddress {
+        return UniversalSocketAddress(unixPath: path)
     }
 }
