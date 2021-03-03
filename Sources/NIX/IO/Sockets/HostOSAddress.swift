@@ -36,6 +36,19 @@ public extension in_addr
     @inlinable static var loopback: Self { Self(s_addr: 0x0100_007f) }
 }
 
+// -------------------------------------
+extension in_addr: CustomStringConvertible
+{
+    public var description: String
+    {
+        switch inet_ntop(.inet4, self)
+        {
+            case .success(let s): return s
+            case .failure(let error): return error.description
+        }
+    }
+}
+
 
 // MARK:- IPv6
 // -------------------------------------
@@ -61,5 +74,18 @@ public extension in6_addr
     // -------------------------------------
     @inlinable static var linkLocalAllV2Routers: Self {
         in6addr_linklocal_allv2routers
+    }
+}
+
+// -------------------------------------
+extension in6_addr: CustomStringConvertible
+{
+    public var description: String
+    {
+        switch inet_ntop(.inet6, self)
+        {
+            case .success(let s): return s
+            case .failure(let error): return error.description
+        }
     }
 }

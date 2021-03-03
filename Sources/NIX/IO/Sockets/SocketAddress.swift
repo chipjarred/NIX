@@ -40,7 +40,7 @@ public struct SocketAddress
     // -------------------------------------
     public var asINET4: sockaddr_in?
     {
-        guard family == .inet4 else { return nil }
+        guard storage.sun_family == AF_INET else { return nil }
         return withPointer(to: storage, recastTo: sockaddr_in.self) {
             $0.pointee
         }
@@ -49,7 +49,7 @@ public struct SocketAddress
     // -------------------------------------
     public var asINET6: sockaddr_in6?
     {
-        guard family == .inet6 else { return nil }
+        guard storage.sun_family == AF_INET6 else { return nil }
         return withPointer(to: storage, recastTo: sockaddr_in6.self) {
             $0.pointee
         }
@@ -58,7 +58,7 @@ public struct SocketAddress
     // -------------------------------------
     public var asUnix: sockaddr_un?
     {
-        guard family == .unix else { return nil }
+        guard storage.sun_family == AF_UNIX else { return nil }
         return withPointer(to: storage, recastTo: sockaddr_un.self) {
             $0.pointee
         }
@@ -147,6 +147,26 @@ public struct SocketAddress
 }
 
 // -------------------------------------
+extension SocketAddress: CustomStringConvertible
+{
+    public var description: String
+    {
+        switch Int32(storage.sun_family)
+        {
+            case AF_INET: return asINET4!.description
+            case AF_INET6: return asINET6!.description
+            case AF_UNIX : return asUnix!.description
+            default:
+                assertionFailure(
+                    "Unsupported address family: \(storage.sun_family)"
+                )
+                return "<<UNSUPPORTED ADDRESS FAMILY>>"
+        }
+    }
+}
+
+// MARK:- IPv6 Domain
+// -------------------------------------
 public extension sockaddr_in
 {
     // -------------------------------------
@@ -180,6 +200,14 @@ public extension sockaddr_in
     }
 }
 
+
+// -------------------------------------
+extension sockaddr_in: CustomStringConvertible {
+    public var description: String { "\(sin_addr):\(sin_port)" }
+}
+
+
+// MARK:- IPv6 Domain
 // -------------------------------------
 public extension sockaddr_in6
 {
@@ -212,6 +240,13 @@ public extension sockaddr_in6
     }
 }
 
+// -------------------------------------
+extension sockaddr_in6: CustomStringConvertible {
+    public var description: String { "[\(sin6_addr)]:\(sin6_port)" }
+}
+
+
+// MARK:- Unix Domain
 // -------------------------------------
 public extension sockaddr_un
 {
@@ -273,4 +308,9 @@ public extension sockaddr_un
             }
         }
     }
+}
+
+// -------------------------------------
+extension sockaddr_un: CustomStringConvertible {
+    public var description: String { path.description }
 }

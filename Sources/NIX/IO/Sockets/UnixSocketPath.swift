@@ -33,6 +33,8 @@ public struct UnixSocketPath: CustomStringConvertible
     
     @inlinable public var description: String { rawValue }
     
+    @inlinable public var isEmpty: Bool { rawValue.isEmpty }
+    
     // -------------------------------------
     @inlinable public init?(_ path: String)
     {

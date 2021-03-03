@@ -368,6 +368,17 @@ public func recv(
  repeatedly allocating them.  It is the caller's responsibilty copy the
  data elsewhere if needed.
  
+ - Important: For Unix domain *datagram* communication, if the sender did not
+    `bind` to its own Unix domain socket address, when the receiver calls
+    `recvfrom`, the `remoteAddress` will not be valid for a later `sendto`.
+    This is because the sender was implicitly using a transiently bound address
+    that was invalidated immediately after the send.  In such situations, if
+    the sender expects a reply, it must `bind` before sending, and not `unlink`
+    the associated path until the communication is finished.
+ 
+    This is not a problem for Unix domain *stream* sockets nor for network
+    sockets.
+ 
  - Parameters:
     - socket: A previously connected or accepted `SocketIODescriptor` to
         receive data from.
@@ -390,13 +401,15 @@ public func recvfrom(
     _ socket: SocketIODescriptor,
     _ buffer: inout Data,
     _ flags: RecvFlags,
-    _ remoteAddress: inout SocketAddress) -> Result<Int, Error>
+    _ remoteAddress: inout SocketAddress?) -> Result<Int, Error>
 {
     assert(buffer.count > 0)
     
-    return buffer.withUnsafeMutableBytes
+    var rAddress = SocketAddress()
+    
+    let result: Result<Int, Error> = buffer.withUnsafeMutableBytes
     { buffer in
-        return remoteAddress.withMutableGenericPointer
+        return rAddress.withMutableGenericPointer
         { remoteAddrPtr in
             var outSize = UInt32(MemoryLayout<SocketAddress>.size)
             let bytesRead = recvfrom(
@@ -413,6 +426,29 @@ public func recvfrom(
             return .success(bytesRead)
         }
     }
+    
+    /*
+     For datagram Unix domain sockets, for the sender to receive a reply, the
+     sender has to first bind to their own Unix domain socket address just like
+     the server; otherwise, the system makes a transient connection which is
+     immediately deleted, so there is no path for recvfrom to fill in, and thus
+     a later sendto using that address will fail with ENOENT (file not found,
+     basically).
+
+     The message is still received, but no identifying info can be attached to
+     the remoteAddress.
+     
+     We denote this case by setting remoteUnixAddress to nil
+     */
+    if case .success(_) = result,
+       let remoteUnixAddress = rAddress.asUnix,
+       remoteUnixAddress.path.isEmpty
+    {
+        remoteAddress =  nil
+    }
+    else { remoteAddress = rAddress }
+    
+    return result
 }
 
 // -------------------------------------
@@ -445,5 +481,44 @@ public func send(
         return bytesWritten == -1
             ? .failure(Error())
             : .success(bytesWritten)
+    }
+}
+
+// -------------------------------------
+/**
+ Send data to a specified remote address
+ 
+ - Parameters:
+    - socket: socket descriptor to use to send the contents of `buffer`.
+    - buffer: `Data` instance containing the bytes to send.
+    - flags: `SendFlags` specifying non-default send behavior,
+    - remoteAddress: The address to which to send the contents of `buffer`.
+ 
+ - Returns: a `Result` which on success contains the number of bytes
+    sent, and on failure contains the error.
+ */
+@inlinable
+public func sendto(
+    _ socket: SocketIODescriptor,
+    _ buffer: Data,
+    _ flags: SendFlags = .none,
+    _ remoteAddress: SocketAddress) -> Result<Int, Error>
+{
+    return buffer.withUnsafeBytes
+    { bufferPtr in
+        remoteAddress.withGenericPointer
+        {
+            let bytesWritten = sendto(
+                socket.descriptor,
+                bufferPtr.baseAddress!,
+                bufferPtr.count,
+                flags.rawValue,
+                $0,
+                remoteAddress.len
+            )
+            return bytesWritten == -1
+                ? .failure(Error())
+                : .success(bytesWritten)
+        }
     }
 }

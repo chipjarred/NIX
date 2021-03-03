@@ -25,6 +25,9 @@ public enum ProtocolFamily: Int32
 {
     // MARK:- Supported Protocol Families
     // -------------------------------------
+    /// Unspecified
+    case unspecified
+    
     /// dummy for IP
     case ip
     
@@ -350,6 +353,7 @@ public enum ProtocolFamily: Int32
     {
         switch rawValue
         {
+            case 0                        : self = .unspecified
             case HostOS.IPPROTO_IP        : self = .ip
             case HostOS.IPPROTO_IPV4      : self = .ip4
             case HostOS.IPPROTO_TCP       : self = .tcp
@@ -468,6 +472,7 @@ public enum ProtocolFamily: Int32
     {
         switch self
         {
+            case .unspecified       : return 0
             case .ip                : return HostOS.IPPROTO_IP
             case .ip4               : return HostOS.IPPROTO_IPV4
             case .tcp               : return HostOS.IPPROTO_TCP
