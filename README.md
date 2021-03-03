@@ -87,6 +87,7 @@ import Foundation
 func echoServerExample()
 {
     let listenSocket = setUpListenerSocket(onPort: 2020)
+    defer { _ = close(listenSocket) }
 
     print("Echo server started...")
 
@@ -113,9 +114,7 @@ func setUpListenerSocket(onPort port: Int) -> SocketIODescriptor
             fatalError("Could not create listener socket: \(error)")
     }
 
-    defer { _ = close(listenSocket) }
-
-    let socketAddress = SocketAddress(ip6Address: .any, port: 2020)
+    let socketAddress = SocketAddress(ip6Address: .any, port: port)
 
     if let error = NIX.bind(listenSocket, socketAddress) {
         fatalError("Could not bind listener socket: \(error)")
