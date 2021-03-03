@@ -22,18 +22,24 @@ import HostOS
 import Foundation
 
 // -------------------------------------
-public protocol IODescriptor {
-    var descriptor: Int32 { get }
-}
-
-
-// MARK:- General BSDescriptor I/O
-// -------------------------------------
-@inlinable
-public func close(_ descriptor: IODescriptor) -> Error?
+public enum OpenReadWriteAccess
 {
-    let result = close(descriptor.descriptor)
-    return result == -1
-        ? Error()
-        : nil
+    /// Open for read-only
+    case readOnly
+    
+    /// Open for write-only
+    case writeOnly
+    
+    /// Open for reading and writing
+    case readWrite
+    
+    public var rawValue: Int32
+    {
+        switch self
+        {
+            case .readOnly : return HostOS.O_RDONLY
+            case .writeOnly: return HostOS.O_WRONLY
+            case .readWrite: return HostOS.O_RDWR
+        }
+    }
 }
