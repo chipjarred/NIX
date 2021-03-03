@@ -23,6 +23,25 @@ import Foundation
 
 func echoServerExample()
 {
+    let listenSocket = setUpListenerSocket(onPort: 2020)
+
+    print("Echo server started...")
+
+    let dispatchQueue = DispatchQueue(label: "\(UUID())", attributes: .concurrent)
+
+    while let peerSocket = acceptAConnection(for: listenSocket)
+    {
+        dispatchQueue.async
+        {
+            defer { _ = NIX.close(peerSocket) }
+            
+            clientSession(for: peerSocket)
+        }
+    }
+}
+
+func setUpListenerSocket(onPort port: Int) -> SocketIODescriptor
+{
     let listenSocket: SocketIODescriptor
     switch NIX.socket(.inet6, .stream, .ip)
     {
@@ -42,89 +61,96 @@ func echoServerExample()
     if let error = NIX.listen(listenSocket, 100) {
         fatalError("Could not listen on listener socket: \(error)")
     }
+    
+    return listenSocket
+}
 
-    print("Echo server started...")
-
-    let dispatchQueue = DispatchQueue(label: "\(UUID())", attributes: .concurrent)
-
-    while true
+func acceptAConnection(for listener: SocketIODescriptor) -> SocketIODescriptor?
+{
+    var peerAddress = SocketAddress()
+    var peerSocket: SocketIODescriptor
+    switch NIX.accept(listener, &peerAddress)
     {
-        var peerAddress = SocketAddress()
-        var peerSocket: SocketIODescriptor
-        switch NIX.accept(listenSocket, &peerAddress)
-        {
-            case .success(let sock): peerSocket = sock
-            case .failure(let error):
-                fatalError("Accept failed on listener socket: \(error)")
-        }
-        
-        dispatchQueue.async
-        {
-            defer { _ = NIX.close(peerSocket) }
-            
-            var readBuffer = Data(repeating: 0, count: 1024)
-
-            clientLoop: while true
-            {
-                // Read data from client
-                var peerMessage: Data
-                switch NIX.read(peerSocket, &readBuffer)
-                {
-                    case .success(let bytesRead):
-                        if bytesRead == 0 {
-                            print("Peer closed connection")
-                            break clientLoop
-                        }
-                        
-                        peerMessage = readBuffer.withUnsafeMutableBytes
-                        {
-                            Data(
-                                bytesNoCopy: $0.baseAddress!,
-                                count: bytesRead,
-                                deallocator: .none
-                            )
-                        }
-                        break
-                        
-                    case .failure(let error):
-                        if error.errno == HostOS.EAGAIN { continue }
-                        print("Error reading from peer socket: \(error)")
-                        break clientLoop
-                }
-                
-                // Process client data
-                let response: String
-                if var peerStr = String(data: peerMessage, encoding: .utf8)
-                {
-                    if peerStr.last == "\n" { peerStr.removeLast() }
-                    
-                    if peerStr.lowercased() == "quit"
-                    {
-                        print("Client requested quit")
-                        break clientLoop
-                    }
-                    
-                    print("Peer message received: \"\(peerStr)\"")
-                    response = "You said, \"\(peerStr)\"\n"
-                }
-                else
-                {
-                    print("Peer message is invalid string: \(readBuffer)")
-                    response = "Huh?"
-                }
-                
-                // Write response to client
-                switch NIX.write(peerSocket, response.data(using: .utf8)!)
-                {
-                    case .success(let bytesWritten):
-                        if bytesWritten != response.count {
-                            print("Not all bytes were written to peer socket")
-                        }
-                    case .failure(let error):
-                        print("Error writing to peer socket: \(error)")
-                        break clientLoop
-                }
-            }
-        }
+        case .success(let sock): peerSocket = sock
+        case .failure(let error):
+            fatalError("Accept failed on listener socket: \(error)")
     }
+    
+    /*
+     Some code could be put here to allow terminating the listener loop by
+     returning nil.  For this simple example, we don't do that.
+     */
+    
+    return peerSocket
+}
+
+func clientSession(for peerSocket: SocketIODescriptor)
+{
+    var readBuffer = Data(repeating: 0, count: 1024)
+
+    while let peerMessage =
+            getPeerMessage(from: peerSocket, using: &readBuffer)
+    {
+        if peerMessage.isEmpty { continue }
+        
+        guard let response = makeResponse(for: peerMessage),
+              sendResponse(response: response, to: peerSocket)
+        else { break }
+    }
+}
+
+func getPeerMessage(
+    from peerSocket: SocketIODescriptor,
+    using readBuffer: inout Data) -> Data?
+{
+    switch NIX.read(peerSocket, &readBuffer)
+    {
+        case .success(let bytesRead):
+            if bytesRead == 0 {
+                print("Peer closed connection")
+                return nil
+            }
+            
+            return Data(readBuffer[..<bytesRead])
+            
+        case .failure(let error):
+            if error.errno == HostOS.EAGAIN { return Data() }
+            print("Error reading from peer socket: \(error)")
+            return nil
+    }
+}
+
+func makeResponse(for message: Data) -> String?
+{
+    guard var peerStr = String(data: message, encoding: .utf8) else
+    {
+        print("Peer message is invalid string: \(message)")
+        return  "Huh?"
+    }
+    
+    if peerStr.last == "\n" { peerStr.removeLast() }
+    
+    if peerStr.lowercased() == "quit"
+    {
+        print("Client requested quit")
+        return nil
+    }
+    
+    print("Peer message received: \"\(peerStr)\"")
+    return "You said, \"\(peerStr)\"\n"
+}
+
+func sendResponse(response: String, to peerSocket: SocketIODescriptor) -> Bool
+{
+    switch NIX.write(peerSocket, response.data(using: .utf8)!)
+    {
+        case .success(let bytesWritten):
+            if bytesWritten != response.count {
+                print("Not all bytes were written to peer socket")
+            }
+        case .failure(let error):
+            print("Error writing to peer socket: \(error)")
+            return false
+    }
+    return true
 }
