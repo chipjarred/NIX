@@ -85,7 +85,7 @@ class HostOSAddress_UnitTests: XCTestCase
                 ),
                 expected: "::1000"
             ),
-            (   // 0000:0000:0000:0000:0000:0000:0000:0000
+            (   // 0001:0000:0000:0000:0000:0000:0000:0000
                 input: (
                     __uint16_t(0x0001).toNetworkByteOrder,
                     __uint16_t(0x0000).toNetworkByteOrder,
@@ -98,7 +98,7 @@ class HostOSAddress_UnitTests: XCTestCase
                 ),
                 expected: "1::"
             ),
-            (   // 0000:0000:0000:0000:0000:0000:0000:0000
+            (   // 1000:0000:0000:0000:0000:0000:0000:0000
                 input: (
                     __uint16_t(0x1000).toNetworkByteOrder,
                     __uint16_t(0x0000).toNetworkByteOrder,
