@@ -21,7 +21,9 @@
 import HostOS
 
 // -------------------------------------
-public protocol HostOSAddress { }
+public protocol HostOSAddress {
+    init()
+}
 
 // MARK:- IPv4
 // -------------------------------------
@@ -34,6 +36,13 @@ public extension in_addr
     @inlinable static var any: Self { Self(s_addr: 0) }
     @inlinable static var broadcast: Self { Self(s_addr: 0xffff_ffff) }
     @inlinable static var loopback: Self { Self(s_addr: 0x0100_007f) }
+    
+    // -------------------------------------
+    init?(address: String)
+    {
+        guard let addr: Self = inet_pton(address) else { return nil }
+        self = addr
+    }
 }
 
 // -------------------------------------
@@ -46,6 +55,15 @@ extension in_addr: CustomStringConvertible
             case .success(let s): return s
             case .failure(let error): return error.description
         }
+    }
+}
+
+// -------------------------------------
+extension in_addr: Equatable
+{
+    // -------------------------------------
+    public static func == (lhs: in_addr, rhs: in_addr) -> Bool {
+        return lhs.s_addr == rhs.s_addr
     }
 }
 
@@ -75,6 +93,13 @@ public extension in6_addr
     @inlinable static var linkLocalAllV2Routers: Self {
         in6addr_linklocal_allv2routers
     }
+    
+    // -------------------------------------
+    init?(address: String)
+    {
+        guard let addr: Self = inet_pton(address) else { return nil }
+        self = addr
+    }
 }
 
 // -------------------------------------
@@ -88,4 +113,19 @@ extension in6_addr: CustomStringConvertible
             case .failure(let error): return error.description
         }
     }
+}
+
+// -------------------------------------
+extension in6_addr: Equatable
+{
+    // -------------------------------------
+    public static func == (lhs: in6_addr, rhs: in6_addr) -> Bool
+    {
+        return lhs.__u6_addr.__u6_addr32.0 == rhs.__u6_addr.__u6_addr32.0
+            && lhs.__u6_addr.__u6_addr32.1 == rhs.__u6_addr.__u6_addr32.1
+            && lhs.__u6_addr.__u6_addr32.2 == rhs.__u6_addr.__u6_addr32.2
+            && lhs.__u6_addr.__u6_addr32.3 == rhs.__u6_addr.__u6_addr32.3
+
+    }
+    
 }

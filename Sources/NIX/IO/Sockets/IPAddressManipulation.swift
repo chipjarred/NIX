@@ -61,3 +61,126 @@ public func inet_ntop<IPAddress: HostOSAddress>(
         }
     }
 }
+
+// -------------------------------------
+/**
+ Convert an IPv4 address expressed as a string into its equivalent `in_addr`.
+ 
+ - Parameter address: a `String` representation of an IPv4 address in
+    dotted quad notation (eg: `127.0.0.1`).
+
+ - Returns: On success, the `in_addr` struct described by `address`; otherwise,
+    `nil`.
+ 
+ - Note: This function is a rare example where the underlying POSIX function
+    returns `1` for success and `0` for failure (ie. ordinary boolean), and
+    does *not* set `errno` on failure.  Since there is no error code to be
+    returned, we simply return the resulting address on success and `nil` on
+    failure.
+ */
+@inlinable
+public func inet_pton(_ address: String) -> in_addr? {
+    return inet_pton(.inet4, address)
+}
+
+
+// -------------------------------------
+/**
+ Convert an IPv6 address expressed as a string into its equivalent `in6_addr`.
+ 
+ The address can be expressed in canonical form as a colon-separated list of
+ eight  4-digit hexadecimal numbers, or may be compressed per IPv6 rules,
+ which are, in the order they are applied:
+ 
+ 1. Within each field, leading zeros may be omitted, unless it is the
+     only digit.
+ 2. If there is one longest sequence of *two* or more consecutive zero fields,
+    that entire sequence may be replaced with `"::"`
+ 3. If there are more than one equally long sequence of two or more consecutive
+    zero fields that compete for the longest sequence, the left-most sequence
+    may be replaced by `"::"`, while the others must be kept as-is.
+ 
+ As an example, here is how the rules apply to a specific canonical IPv6
+ address:
+ 
+        "2001:0db8:0000:0000:85a3:0000:0000:7334"
+ 
+ Applying rule 1, leading zeros are removed within each field
+ 
+        "2001:db8:0:0:85a3:0:0:7334"
+ 
+ Applying rule 2, we see there are two equally "longest" sequences of
+ consecutive zero fields.
+ 
+        "2001:db8:0:0:85a3:0:0:7334"
+                  ^^^      ^^^
+
+ Applying rule 3 breaks the tie by compressing the left-most sequence, and
+ leaving the other as-is.
+ 
+        "2001:db8::85a3:0:0:7334"
+ 
+ When there are many of consecutive zero fields, the compression can be
+ dramatic.  For example, the invalid and loopback addresses compress to almost
+ nothing:
+ 
+        "0000:0000:0000:0000:0000:0000:0000:0000" -> "::"
+        "0000:0000:0000:0000:0000:0000:0000:0001" -> "::1"
+
+ - Parameter address: a `String` representation of an IPv6 address as described
+    above.
+ 
+ - Returns: On success, the `in6_addr` struct described by `address`; otherwise,
+    `nil`.
+ 
+ - Note: This function is a rare example where the underlying POSIX function
+    returns `1` for success and `0` for failure (ie. ordinary boolean), and
+    does *not* set `errno` on failure.  Since there is no error code to be
+    returned, we simply return the resulting address on success and `nil` on
+    failure.
+*/
+@inlinable
+public func inet_pton(_ address: String) -> in6_addr? {
+    return inet_pton(.inet6, address)
+}
+
+// -------------------------------------
+/**
+ Convert an IP address expressed as a string into its equivalent binary address.
+ 
+ - Parameters:
+    - addressFamily: The `AddresFamily` of the IP address expressed in
+        `address`.  Only `.inet4` and `.inet6` are currently supported.
+    - address: a `String` representation of an IP address.
+
+ - Returns: On success, the binary address described by `address`; otherwise,
+    `nil`.
+ 
+ - Note: This function is a rare example where the underlying POSIX function
+    returns `1` for success and `0` for failure (ie. ordinary boolean), and
+    does *not* set `errno` on failure.  Since there is no error code to be
+    returned, we simply return the resulting address on success and `nil` on
+    failure.
+ */
+@usableFromInline
+internal func inet_pton<IPAddress: HostOSAddress>(
+    _ addressFamily: AddressFamily,
+    _ address: String) -> IPAddress?
+{
+    assert([.inet4, .inet6].contains(addressFamily))
+    
+    var netAddr = IPAddress()
+    let result = withUnsafeMutableBytes(of: &netAddr)
+    { netAddrPtr in
+        return address.withCString
+        {
+            return HostOS.inet_pton(
+                addressFamily.rawValue,
+                $0,
+                netAddrPtr.baseAddress
+            )
+        }
+    }
+    
+    return result == 1 ? netAddr : nil
+}
