@@ -8,6 +8,10 @@ class HostOSAddress_UnitTests: XCTestCase
     [
         ("test_IP4_description_is_correct", test_IP4_description_is_correct),
         ("test_IP6_description_is_correct", test_IP6_description_is_correct),
+        ("test_IP4_address_can_be_initialized_from_a_string_description", test_IP4_address_can_be_initialized_from_a_string_description),
+        ("test_IP6_address_can_be_initialized_from_a_string_description", test_IP6_address_can_be_initialized_from_a_string_description),
+        ("test_IP4_address_fails_to_initialize_from_an_invalid_string_description", test_IP4_address_fails_to_initialize_from_an_invalid_string_description),
+        ("test_IP6_address_fails_to_initialize_from_an_invalid_string_description", test_IP6_address_fails_to_initialize_from_an_invalid_string_description),
     ]
     
     // -------------------------------------
@@ -227,7 +231,33 @@ class HostOSAddress_UnitTests: XCTestCase
                     __uint16_t(0x0000).toNetworkByteOrder,
                     __uint16_t(0x0000).toNetworkByteOrder
                 ),
+                input: "0000:0000:0000:0000:0000:0000:0000:0000"
+            ),
+            (   // 0000:0000:0000:0000:0000:0000:0000:0000
+                expected: (
+                    __uint16_t(0x0000).toNetworkByteOrder,
+                    __uint16_t(0x0000).toNetworkByteOrder,
+                    __uint16_t(0x0000).toNetworkByteOrder,
+                    __uint16_t(0x0000).toNetworkByteOrder,
+                    __uint16_t(0x0000).toNetworkByteOrder,
+                    __uint16_t(0x0000).toNetworkByteOrder,
+                    __uint16_t(0x0000).toNetworkByteOrder,
+                    __uint16_t(0x0000).toNetworkByteOrder
+                ),
                 input: "::"
+            ),
+            (   // 0000:0000:0000:0000:0000:0000:0000:0001
+                expected: (
+                    __uint16_t(0x0000).toNetworkByteOrder,
+                    __uint16_t(0x0000).toNetworkByteOrder,
+                    __uint16_t(0x0000).toNetworkByteOrder,
+                    __uint16_t(0x0000).toNetworkByteOrder,
+                    __uint16_t(0x0000).toNetworkByteOrder,
+                    __uint16_t(0x0000).toNetworkByteOrder,
+                    __uint16_t(0x0000).toNetworkByteOrder,
+                    __uint16_t(0x0001).toNetworkByteOrder
+                ),
+                input: "0000:0000:0000:0000:0000:0000:0000:0001"
             ),
             (   // 0000:0000:0000:0000:0000:0000:0000:0001
                 expected: (
@@ -305,6 +335,19 @@ class HostOSAddress_UnitTests: XCTestCase
                     __uint16_t(0x0000).toNetworkByteOrder,
                     __uint16_t(0x0000).toNetworkByteOrder
                 ),
+                input: "2001:0db8:85a3:0000:0000:0000:0000:0000"
+            ),
+            (   // 2001:0db8:85a3:0000:0000:0000:0000:0000
+                expected: (
+                    __uint16_t(0x2001).toNetworkByteOrder,
+                    __uint16_t(0x0db8).toNetworkByteOrder,
+                    __uint16_t(0x85a3).toNetworkByteOrder,
+                    __uint16_t(0x0000).toNetworkByteOrder,
+                    __uint16_t(0x0000).toNetworkByteOrder,
+                    __uint16_t(0x0000).toNetworkByteOrder,
+                    __uint16_t(0x0000).toNetworkByteOrder,
+                    __uint16_t(0x0000).toNetworkByteOrder
+                ),
                 input: "2001:db8:85a3::"
             ),
             (   // 2001:0db8:85a3:0000:0000:8a2e:0370:7334
@@ -347,6 +390,72 @@ class HostOSAddress_UnitTests: XCTestCase
                 )
             )
             XCTAssertEqual(actual, expected)
+        }
+    }
+    
+    // -------------------------------------
+    func test_IP4_address_fails_to_initialize_from_an_invalid_string_description()
+    {
+        let testCases: [String] =
+        [
+            "",
+            "0",
+            "0.0",
+            "0.0.0",
+            "192",
+            "192.168",
+            "192.168.42",
+            "0.0.0.0.0",
+            "0.0.0.f",
+            "0.0.a.0",
+            "0.c.0.0",
+            "e.0.0.0",
+            "256.255.255.255",
+            "255.256.255.255",
+            "255.255.256.255",
+            "255.255.255.256",
+            "31.1.16.241.42",
+            "some-site.org",
+        ]
+        for input in testCases
+        {
+            let actual = in_addr(address: input)
+            XCTAssertNil(actual)
+        }
+    }
+    
+    // -------------------------------------
+    func test_IP6_address_fails_to_initialize_from_an_invalid_string_description()
+    {
+        let testCases: [String] =
+        [
+            "",
+            ":",
+            ":1",
+            "1:",
+            "0:0",
+            "0:0:",
+            "0:0:0",
+            "0:0:0:",
+            "0:0:0:0",
+            "0:0:0:0:",
+            "0:0:0:0:0",
+            "0:0:0:0:0:0",
+            "0:0:0:0:0:0:",
+            "0:0:0:0:0:0:0",
+            "0:0:0:0:0:0:0:",
+            "0:0:0:0:0:0:0:0:",
+            "0:0:0:0:0:0:0:0:0",
+            "10000::",
+            "::10000",
+            "fa:10000::",
+            "::10000:5",
+            "some-site.org",
+        ]
+        for input in testCases
+        {
+            let actual = in6_addr(address: input)
+            XCTAssertNil(actual)
         }
     }
 }
