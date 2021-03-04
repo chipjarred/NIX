@@ -201,6 +201,38 @@ extension SocketAddress: CustomStringConvertible
     }
 }
 
+// -------------------------------------
+extension SocketAddress: Equatable
+{
+    // -------------------------------------
+    @inlinable public static func == (left: Self, right: Self) -> Bool
+    {
+        guard left.storage.sun_family == right.storage.sun_family else {
+            return false
+        }
+        
+        switch Int32(left.storage.sun_family)
+        {
+            case HostOS.AF_INET: return left.asINET4 == right.asINET4
+            case HostOS.AF_INET6: return left.asINET6 == right.asINET6
+            case HostOS.AF_UNIX: return left.asUnix == right.asUnix
+            default: break
+        }
+        
+        return withUnsafeBytes(of: left)
+        { leftPtr in
+            withUnsafeBytes(of: right)
+            {
+                return 0 == memcmp(
+                    leftPtr.baseAddress!,
+                    $0.baseAddress!,
+                    Int(max(left.len, right.len))
+                )
+            }
+        }
+    }
+}
+
 // MARK:- IPv6 Domain
 // -------------------------------------
 public extension sockaddr_in
@@ -271,10 +303,22 @@ public extension sockaddr_in
     }
 }
 
+// -------------------------------------
+extension sockaddr_in: CustomStringConvertible
+{
+    public var description: String { "\(sin_addr):\(sin_port.toHostByteOrder)" }
+}
 
 // -------------------------------------
-extension sockaddr_in: CustomStringConvertible {
-    public var description: String { "\(sin_addr):\(sin_port)" }
+extension sockaddr_in: Equatable
+{
+    @inlinable public static func == (left: Self, right: Self) -> Bool
+    {
+        return left.sin_len == right.sin_len
+            && left.sin_family == right.sin_family
+            && left.sin_port == right.sin_port
+            && left.sin_addr == right.sin_addr
+    }
 }
 
 
@@ -358,10 +402,25 @@ public extension sockaddr_in6
 }
 
 // -------------------------------------
-extension sockaddr_in6: CustomStringConvertible {
-    public var description: String { "[\(sin6_addr)]:\(sin6_port)" }
+extension sockaddr_in6: CustomStringConvertible
+{
+    public var description: String {
+        "[\(sin6_addr)]:\(sin6_port.toHostByteOrder)"
+    }
 }
 
+// -------------------------------------
+extension sockaddr_in6: Equatable
+{
+    @inlinable public static func == (left: Self, right: Self) -> Bool
+    {
+        return left.sin6_len == right.sin6_len
+            && left.sin6_family == right.sin6_family
+            && left.sin6_port == right.sin6_port
+            && left.sin6_addr == right.sin6_addr
+            && left.sin6_flowinfo == right.sin6_flowinfo
+    }
+}
 
 // MARK:- Unix Domain
 // -------------------------------------
@@ -446,4 +505,16 @@ public extension sockaddr_un
 // -------------------------------------
 extension sockaddr_un: CustomStringConvertible {
     public var description: String { path.description }
+}
+
+// -------------------------------------
+extension sockaddr_un: Equatable
+{
+    // -------------------------------------
+    @inlinable public static func == (left: Self, right: Self) -> Bool
+    {
+        return left.family == right.family
+            && left.sun_len == right.sun_len
+            && left.path == right.path
+    }
 }

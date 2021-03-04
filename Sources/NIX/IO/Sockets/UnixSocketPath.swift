@@ -54,3 +54,11 @@ public struct UnixSocketPath: CustomStringConvertible
         self.rawValue = path
     }
 }
+
+// -------------------------------------
+extension UnixSocketPath: Equatable
+{
+    @inlinable public static func == (left: Self, right: Self) -> Bool {
+        return left.rawValue == right.rawValue
+    }
+}
