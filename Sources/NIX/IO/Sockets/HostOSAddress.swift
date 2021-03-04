@@ -38,7 +38,7 @@ public extension in_addr
     @inlinable static var loopback: Self { Self(s_addr: 0x0100_007f) }
     
     // -------------------------------------
-    init?(address: String)
+    init?<S: StringProtocol>(address: S)
     {
         guard let addr: Self = inet_pton(address) else { return nil }
         self = addr
@@ -95,7 +95,7 @@ public extension in6_addr
     }
     
     // -------------------------------------
-    init?(address: String)
+    init?<S: StringProtocol>(address: S)
     {
         guard let addr: Self = inet_pton(address) else { return nil }
         self = addr

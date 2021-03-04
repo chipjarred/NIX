@@ -36,7 +36,7 @@ public struct UnixSocketPath: CustomStringConvertible
     @inlinable public var isEmpty: Bool { rawValue.isEmpty }
     
     // -------------------------------------
-    @inlinable public init?(_ path: String)
+    @inlinable public init?<S: StringProtocol>(_ path: S)
     {
         let socketPath = path.withCString {
             return strlen($0) <= sockaddr_un.maxPathLen
@@ -46,7 +46,7 @@ public struct UnixSocketPath: CustomStringConvertible
         
         guard let sPath = socketPath else { return nil }
         
-        self.init(path: sPath)
+        self.init(path: String(sPath))
     }
     
     // -------------------------------------

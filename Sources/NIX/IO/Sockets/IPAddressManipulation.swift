@@ -79,7 +79,7 @@ public func inet_ntop<IPAddress: HostOSAddress>(
     failure.
  */
 @inlinable
-public func inet_pton(_ address: String) -> in_addr? {
+public func inet_pton<S: StringProtocol>(_ address: S) -> in_addr? {
     return inet_pton(.inet4, address)
 }
 
@@ -140,7 +140,7 @@ public func inet_pton(_ address: String) -> in_addr? {
     failure.
 */
 @inlinable
-public func inet_pton(_ address: String) -> in6_addr? {
+public func inet_pton<S: StringProtocol>(_ address: S) -> in6_addr? {
     return inet_pton(.inet6, address)
 }
 
@@ -163,9 +163,9 @@ public func inet_pton(_ address: String) -> in6_addr? {
     failure.
  */
 @usableFromInline
-internal func inet_pton<IPAddress: HostOSAddress>(
+internal func inet_pton<IPAddress: HostOSAddress, S: StringProtocol>(
     _ addressFamily: AddressFamily,
-    _ address: String) -> IPAddress?
+    _ address: S) -> IPAddress?
 {
     assert([.inet4, .inet6].contains(addressFamily))
     

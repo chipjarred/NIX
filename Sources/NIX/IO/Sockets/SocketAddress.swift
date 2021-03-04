@@ -144,6 +144,42 @@ public struct SocketAddress
             return try block($0)
         }
     }
+    
+    // -------------------------------------
+    /**
+     Initialize a `SocketAddress` with a string describing a valid socket
+     address.
+     
+     A valid socket address description is one that describes one of the
+     following:
+     
+        - An IPv4 address and port (eg. `"192.168.1.4:80"`)
+        - An IPv6 address and port (eg. `"[::8f:8a21]:80"`)
+        - A Unix domain socket path (eg. `"/run/myserviced.socket"`)
+     
+     In order to create the proper underlying socket address type, this
+     initializer first attempts to initialize as an IPv4 socket address.
+     If that fails, then it tries IPv6.  And if that fails, it tries Unix
+     domain.  If that fails, then initialization fails, and it returns `nil`
+     
+     - Parameter address: `String` describing a valid socket address as
+        described above.
+     
+     - Returns: On success,the newly created `SocketAddress`; otherwise `nil`
+     */
+    init?<S: StringProtocol>(_ address: S)
+    {
+        if let ip4Addr = sockaddr_in(address) {
+            self.init(ip4Addr)
+        }
+        else if let ip6Addr = sockaddr_in6(address) {
+            self.init(ip6Addr)
+        }
+        else if let unixAddr = sockaddr_un(address) {
+            self.init(unixAddr)
+        }
+        else { return nil }
+    }
 }
 
 // -------------------------------------
@@ -198,6 +234,41 @@ public extension sockaddr_in
         get { return Int(sin_port.toHostByteOrder) }
         set { sin_port = in_port_t(newValue).toNetworkByteOrder }
     }
+    
+    // -------------------------------------
+    /**
+     Initialize a `sockaddr_in` with a string describing the IPv4 address and
+     port.
+     
+     `addressAndPort` must be a `String` containing only a the IPv4 address in a
+     dot-separated list of four decimal numbers in the range 0...255, followed
+     by a `":"`, followed by a decimal port number, with no whitespace.
+     
+     For example the string for describing port `80` on the loopback address is
+     
+            "127.0.0.1:80"
+     
+     - Parameter addressAndPort: String describing the IPv4 address and port.
+     
+     - Returns: On success,the newly created `sockaddr_in`; otherwise `nil`
+     */
+    @inlinable init?<S: StringProtocol>(_ addressAndPort: S)
+    {
+        guard var portStart = addressAndPort.firstIndex(of: ":"),
+              let address = in_addr(address: addressAndPort[..<portStart])
+        else { return nil }
+        
+        portStart = addressAndPort.index(after: portStart)
+        guard let port = in_port_t(addressAndPort[portStart...]) else {
+            return nil
+        }
+        
+        self = Self()
+        self.sin_len = __uint8_t(MemoryLayout<Self>.size)
+        self.sin_family = sa_family_t(HostOS.AF_INET)
+        self.sin_port = port.toNetworkByteOrder
+        self.sin_addr = address
+    }
 }
 
 
@@ -237,6 +308,52 @@ public extension sockaddr_in6
     {
         get { return Int(sin6_port.toHostByteOrder) }
         set { sin6_port = in_port_t(newValue).toNetworkByteOrder }
+    }
+    
+    // -------------------------------------
+    /**
+     Initialize a `sockaddr_in6` with a string describing the IPv6 address and
+     port.
+     
+     `addressAndPort` must be a `String` containing only a bracket-enclosed IPv6
+     address, which may be compressed per IPv6 rules, followed a `":"`,
+     followed by a decimal port number, with no whitespace.
+     
+     For example the string for describing port `80` on the loopback address is
+     
+            "[::1]:80"
+     
+     - Parameter addressAndPort: String describing the IPv6 address and port.
+     
+     - Returns: On success,the newly created `sockaddr_in6`; otherwise `nil`
+     */
+    @inlinable init?<S: StringProtocol>(_ addressAndPort: S)
+    {
+        guard addressAndPort.first == "[",
+              let addressEnd = addressAndPort.firstIndex(of: "]")
+        else { return nil }
+        
+        var portStart = addressAndPort.index(after: addressEnd)
+        guard addressAndPort[portStart] == ":" else { return nil }
+        
+        portStart = addressAndPort.index(after: portStart)
+        guard let port = in_port_t(addressAndPort[portStart...]) else {
+            return nil
+        }
+        
+        let addressStart =
+            addressAndPort.index(after: addressAndPort.startIndex)
+        
+        guard let address =
+                in6_addr(address: addressAndPort[addressStart..<addressEnd])
+        else { return nil }
+        
+        self = Self()
+        self.sin6_len = __uint8_t(MemoryLayout<Self>.size)
+        self.sin6_family = sa_family_t(HostOS.AF_INET6)
+        self.sin6_port = port.toNetworkByteOrder
+        self.sin6_addr = address
+        self.sin6_flowinfo = 0
     }
 }
 
@@ -307,6 +424,22 @@ public extension sockaddr_un
                 }
             }
         }
+    }
+    
+    // -------------------------------------
+    @inlinable init(_ path: UnixSocketPath)
+    {
+        self = Self()
+        self.sun_len = UInt8(MemoryLayout<Self>.size)
+        self.sun_family = sa_family_t(HostOS.AF_UNIX)
+        self.path = path
+    }
+    
+    // -------------------------------------
+    @inlinable init?<S: StringProtocol>(_ path: S)
+    {
+        guard let unixPath = UnixSocketPath(path) else { return nil }
+        self.init(unixPath)
     }
 }
 
