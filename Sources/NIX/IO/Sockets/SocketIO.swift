@@ -506,7 +506,7 @@ public func recvfrom(
 @inlinable
 public func recvmsg(
     _ socket: SocketIODescriptor,
-    _ message: inout Message,
+    _ message: inout MessageToReceive,
     _ flags: RecvFlags) -> Result<Int, Error>
 {
     return message.withMutableMsgHdr
@@ -594,7 +594,7 @@ public func sendto(
 @inlinable
 public func sendmsg(
     _ socket: SocketIODescriptor,
-    _ message: Message,
+    _ message: MessageToSend,
     _ flags: RecvFlags) -> Result<Int, Error>
 {
     return message.withMsgHdr

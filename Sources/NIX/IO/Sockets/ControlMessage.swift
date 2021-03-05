@@ -26,299 +26,123 @@ import Foundation
  */
 public struct ControlMessage
 {
-    @usableFromInline internal let cmsghdrSize =
-        MemoryLayout<HostOS.cmsghdr>.stride
+    @usableFromInline internal static let cmsghdrSize =
+        align32(MemoryLayout<HostOS.cmsghdr>.stride)
     @usableFromInline internal let lenIndex   = 0
     @usableFromInline internal let levelIndex = 1
     @usableFromInline internal let typeIndex  = 2
     
     // -------------------------------------
+    @inlinable
+    public static func align<T: FixedWidthInteger>(_ value: T) -> T {
+        return NIX.align32(value)
+    }
+    
+    // -------------------------------------
+    @usableFromInline @inline(__always)
+    internal mutating func pad() { storage.pad32() }
+    
+    // -------------------------------------
     /// data byte count, including hdr
     @usableFromInline internal var len: CUnsignedInt
     {
-        get
-        {
-            return storage.withUnsafeBytes
-            {
-                return $0.baseAddress!
-                    .bindMemory(to: CUnsignedInt.self, capacity: 3)[lenIndex]
-            }
-        }
-        set
-        {
-            storage.withUnsafeMutableBytes
-            {
-                $0.baseAddress!
-                    .bindMemory(to: CUnsignedInt.self, capacity: 3)[lenIndex] =
-                        newValue
-            }
-        }
+        get { getValue(at: lenIndex) }
+        set { setValue(at: lenIndex, to: newValue) }
     }
     
     // -------------------------------------
     /// originating protocol
     @inlinable public var level: CInt
     {
-        get
-        {
-            return storage.withUnsafeBytes
-            {
-                return $0.baseAddress!
-                    .bindMemory(to: CInt.self, capacity: 3)[levelIndex]
-            }
-        }
-        set
-        {
-            storage.withUnsafeMutableBytes
-            {
-                $0.baseAddress!
-                    .bindMemory(to: CInt.self, capacity: 3)[levelIndex] =
-                        newValue
-            }
-        }
+        get { getValue(at: levelIndex) }
+        set { setValue(at: levelIndex, to: newValue) }
     }
 
     // -------------------------------------
     /// protocol-specific type
     @inlinable public var type: CInt
     {
-        get
+        get { getValue(at: typeIndex) }
+        set { setValue(at: typeIndex, to: newValue) }
+    }
+    
+    // -------------------------------------
+    @usableFromInline @inline(__always)
+    internal func getValue<T: FixedWidthInteger>(at index: Int) -> T
+    {
+        let byteIndex = MemoryLayout<T>.stride * index
+        return storage.withUnsafeBytes
         {
-            return storage.withUnsafeBytes
-            {
-                return $0.baseAddress!
-                    .bindMemory(to: CInt.self, capacity: 3)[typeIndex]
-            }
-        }
-        set
-        {
-            storage.withUnsafeMutableBytes
-            {
-                $0.baseAddress!
-                    .bindMemory(to: CInt.self, capacity: 3)[typeIndex] =
-                        newValue
-            }
+            $0.baseAddress!.advanced(by: byteIndex)
+                .bindMemory(to: T.self, capacity: 1).pointee
         }
     }
     
     // -------------------------------------
-    public var messageData: Data
+    @usableFromInline @inline(__always)
+    internal mutating func setValue<T: FixedWidthInteger>(
+        at index: Int,
+        to value: T)
     {
-        get { return Data(storage[cmsghdrSize...]) }
-        set
+        let byteIndex = MemoryLayout<T>.stride * index
+        storage.withUnsafeMutableBytes
         {
-            assert(storage.count >= cmsghdrSize)
-            self.storage.removeLast(storage.count - cmsghdrSize)
-            self.append(newValue)
+            $0.baseAddress!.advanced(by: byteIndex)
+                .bindMemory(to: T.self, capacity: 1).pointee = value
+        }
+    }
+
+    // -------------------------------------
+    public var messageData: Data {
+        get { return Data(storage[Self.align(Self.cmsghdrSize)...]) }
+    }
+    
+    // -------------------------------------
+    public mutating func appendBytes<Bytes: ContiguousBytes>(of value: Bytes)
+    {
+        value.withUnsafeBytes {
+            storage.append(contentsOf: $0)
         }
     }
     
     @usableFromInline internal var storage: Data
-    
-    // -------------------------------------
-    /**
-        **UNSAFE - UNSAFE - UNSAFE - UNSAFE - UNSAFE**
-     
-     This is really unsafe, but we need it to support functions  like `recvmsg`
-     and `sendmsg`.
-     
-     Swift tries really hard to prevent pointers into Swift values from escaping
-     closures where it can ensure that they are valid, but there are contexts
-     where they are valid apart from the ones that the Swift compiler can prove,
-     so we *must* ensure that these pointers don't escape such contexts.
-     
-     In short, we must ensure that no pointer obtained through this function
-     escapes the immediate context in which its obtained.  That is to say, if
-     such a pointer is passed to another function, that function must not make
-     a copy and store it for later use.
-     
-     This is the method to use when the intention is only to read the data
-     pointed to.
-     
-     Basically, this function takes the training wheels off... so be really sure
-     you know what you're doing.  You have been warned.
-     */
-    @usableFromInline
-    internal func cmsghdrPtr()
-        -> UnsafeMutablePointer<HostOS.cmsghdr>
-    {
-        return storage.unsafeDataPointer()!.bindMemory(
-            to: HostOS.cmsghdr.self,
-            capacity: 1
-        )
-    }
-    
-    // -------------------------------------
-    /**
-        **UNSAFE - UNSAFE - UNSAFE - UNSAFE - UNSAFE**
-     
-     This is really unsafe, but we need it to support functions  like `recvmsg`
-     and `sendmsg`.
-     
-     Swift tries really hard to prevent pointers into Swift values from escaping
-     closures where it can ensure that they are valid, but there are contexts
-     where they are valid apart from the ones that the Swift compiler can prove,
-     so we *must* ensure that these pointers don't escape such contexts.
-     
-     In short, we must ensure that no pointer obtained through this function
-     escapes the immediate context in which its obtained.  That is to say, if
-     such a pointer is passed to another function, that function must not make
-     a copy and store it for later use.
-     
-     This is the method to use when the intention is to alter the data pointed
-     to.
-     
-     Basically, this function takes the training wheels off... so be really sure
-     you know what you're doing.  You have been warned.
-     */
-    @usableFromInline
-    internal mutating func mutableCmsghdrPtr()
-        -> UnsafeMutablePointer<HostOS.cmsghdr>
-    {
-        return storage.unsafeMutableDataPointer()!.bindMemory(
-            to: HostOS.cmsghdr.self,
-            capacity: 1
-        )
-    }
 
     // -------------------------------------
-    @inlinable public init(capacity: Int)
+    @inlinable
+    public init()
     {
-        self.storage = Data(repeating: 0, count: cmsghdrSize + capacity)
-        self.len = CUnsignedInt(cmsghdrSize + capacity)
-    }
-
-    // -------------------------------------
-    @usableFromInline internal init?(
-        cmsghdr controlMessage: UnsafeMutableRawPointer?,
-        bytes: Int)
-    {
-        guard let controlMessage = controlMessage else { return nil }
-        self.storage = Data(bytes: controlMessage, count: bytes)
+        self.storage = Data(
+            repeating: 0,
+            count: Self.align(MemoryLayout<HostOS.cmsghdr>.size)
+        )
+        self.len = socklen_t(Self.cmsghdrSize)
     }
 
     // -------------------------------------
     @inlinable
-    public init() { self.init(capacity: 0) }
+    public init(messageCapacity: Int = 0)
+    {
+        let capacity =
+            Self.align(MemoryLayout<HostOS.cmsghdr>.size) + messageCapacity
+        
+        self.storage = Data(
+            repeating: 0,
+            count: capacity
+        )
+        self.len = socklen_t(capacity)
+    }
 
     // -------------------------------------
     @inlinable
     public init(level: CInt, type: CInt, messageData: Data)
     {
-        self.init(capacity: messageData.count)
+        self.init()
+        self.storage.reserveCapacity(storage.count + messageData.count)
+        self.storage.append(messageData)
+        
         self.level = level
         self.type = type
-        self.storage.append(messageData)
-        self.len = CUnsignedInt(storage.count)
-    }
-    
-    // -------------------------------------
-    @inlinable
-    public mutating func append(_ other: Data)
-    {
-        storage.append(other)
-        len += CUnsignedInt(other.count)
-    }
-    
-    // -------------------------------------
-    @inlinable
-    public mutating func append<S: Sequence>(_ other: S)
-        where S.Element == Data.Element
-    {
-        storage.append(contentsOf: other)
-        len = CUnsignedInt(storage.count)
-    }
-    
-    // -------------------------------------
-    @inlinable
-    public mutating func append<S: Collection>(_ other: S)
-        where S.Element == Data.Element
-    {
-        storage.reserveCapacity(storage.count + other.count)
-        storage.append(contentsOf: other)
-        len = CUnsignedInt(storage.count)
-    }
-}
-
-// MARK:- Indexing support
-// -------------------------------------
-public extension ControlMessage
-{
-    @inlinable var startIndex: Int { storage.startIndex + cmsghdrSize }
-    @inlinable var endIndex: Int { storage.endIndex }
-    @inlinable var count: Int { endIndex - startIndex }
-    @inlinable var indices: Range<Int> { startIndex..<endIndex }
-
-    // -------------------------------------
-    @inlinable
-    subscript(index: Int) -> UInt8
-    {
-        get
-        {
-            assert(
-                indices.contains(index),
-                "Index out of bounds: \(index) not in "
-                + "\(startIndex)..<\(endIndex)"
-            )
-            return self.storage[index + cmsghdrSize]
-        }
-        set
-        {
-            assert(
-                indices.contains(index),
-                "Index out of bounds: \(index) not in "
-                + "\(startIndex)..<\(endIndex)"
-            )
-            self.storage[index + cmsghdrSize] = newValue
-        }
-    }
-
-    // -------------------------------------
-    @inlinable
-    subscript(range: Range<Int>) -> Data.SubSequence
-    {
-        get
-        {
-            assert(range.lowerBound >= startIndex)
-            assert(range.upperBound <= endIndex)
-            return self.storage[range]
-        }
-    }
-
-    // -------------------------------------
-    @inlinable
-    subscript(range: ClosedRange<Int>) -> Data.SubSequence
-    {
-        get
-        {
-            assert(range.lowerBound >= startIndex)
-            assert(range.upperBound < endIndex)
-            return self.storage[range]
-        }
-    }
-
-    // -------------------------------------
-    @inlinable
-    subscript(range: PartialRangeFrom<Int>) -> Data.SubSequence {
-        return self[range.lowerBound..<endIndex]
-    }
-
-    // -------------------------------------
-    @inlinable
-    subscript(range: PartialRangeUpTo<Int>) -> Data.SubSequence {
-        return self[startIndex..<range.upperBound]
-    }
-
-    // -------------------------------------
-    @inlinable
-    subscript(range: PartialRangeThrough<Int>) -> Data.SubSequence {
-        return self[startIndex...range.upperBound]
-    }
-
-    // -------------------------------------
-    @inlinable
-    subscript(range: UnboundedRange) -> Data.SubSequence {
-        return self[indices]
+        self.len = socklen_t(storage.count)
     }
 }
 
@@ -326,14 +150,14 @@ public extension ControlMessage
 internal extension Data.SubSequence
 {
     var cmgshdrSize: Int { MemoryLayout<HostOS.cmsghdr>.size }
-    var cmgshdrStride: Int { MemoryLayout<HostOS.cmsghdr>.stride }
+    var cmgshdrStride: Int { NIX.align32(cmgshdrSize) }
 
     // -------------------------------------
     func nextControlMessage() -> Self?
     {
         guard let current = getControlMessageHeader() else { return nil }
         
-        let newStart = align_(startIndex + Int(current.cmsg_len))
+        let newStart = startIndex + ControlMessage.align(Int(current.cmsg_len))
         
         guard newStart <= endIndex else { return nil }
         

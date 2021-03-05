@@ -23,6 +23,18 @@ import Foundation
 
 // -------------------------------------
 @usableFromInline
-internal func align_(_ x: Int) -> Int {
-    return x + x % MemoryLayout<Int32>.stride
+internal func align16<T: FixedWidthInteger>(_ x: T) -> T {
+    return x + x % T(MemoryLayout<Int16>.stride)
+}
+
+// -------------------------------------
+@usableFromInline
+internal func align32<T: FixedWidthInteger>(_ x: T) -> T {
+    return x + x % T(MemoryLayout<Int32>.stride)
+}
+
+// -------------------------------------
+@usableFromInline
+internal func align64<T: FixedWidthInteger>(_ x: T) -> T {
+    return x + x % T(MemoryLayout<Int64>.stride)
 }

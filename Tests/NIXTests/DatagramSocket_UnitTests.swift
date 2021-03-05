@@ -322,14 +322,7 @@ final class DatagramSocket_UnitTests: XCTestCase
             return
         }
         
-        let controlMessageData = String("Control Message").data(using: .utf8)!
-        let serverControlMessage = ControlMessage(
-            level: 42,
-            type: 22,
-            messageData: controlMessageData
-        )
-        server.controlMessages = [serverControlMessage]
-        
+        server.useSendMessage = true
 
         server.start()
         
@@ -396,16 +389,14 @@ final class DatagramSocket_UnitTests: XCTestCase
                 XCTFail("Client failed to send message: \(error)")
                 return
         }
-                
-        var msg = Message(
+         
+        var msg = MessageToReceive(
             messageName: Data(repeating: 0, count: MemoryLayout<HostOS.sockaddr_un>.size),
             messages: [Data(repeating: 0, count: 1024)],
             controlMessages: [ControlMessage](
-                repeating: ControlMessage(capacity: 1024), count: 5),
+                repeating: ControlMessage(messageCapacity: 1024), count: 5),
             flags: .none
         )
-        print("controlMessages[0] = \([UInt8](msg.controlMessages[0].storage))")
-
         switch NIX.recvmsg(socket, &msg, .none)
         {
             case .success(let bytesRead):
@@ -423,9 +414,6 @@ final class DatagramSocket_UnitTests: XCTestCase
             String(data: msg.messages[0], encoding: .utf8)!
         XCTAssertEqual(serverToClientMessage, messageClientReceived)
         
-        print("controlMessages[0] = \([UInt8](msg.controlMessages[0].storage))")
-        print("flags = \(msg.flags)")
-
         XCTAssertEqual(msg.controlMessages[0].level, HostOS.SOL_SOCKET)
         XCTAssertEqual(msg.controlMessages[0].type, HostOS.SCM_RIGHTS)
     }

@@ -1,64 +1,42 @@
+// Copyright 2021 Chip Jarred
 //
-//  MessageHeader.swift
-//  
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
 //
-//  Created by Chip Jarred on 3/4/21.
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
 //
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 
 import Foundation
 
-public struct MessageFlags: NIXFlags
-{
-    public typealias RawValue = Int32
-    
-    public internal(set) var rawValue: RawValue
-    
-    /// Data completes record
-    public static let endOfRecord = Self(rawValue: HostOS.MSG_EOR)
-    
-    /**
-     Data discarded before delivery
-     
-     Indicates that the trailing portion of a datagram was discarded because
-     the datagram was larger than the buffer supplied.
-     */
-    public static let messageTruncated = Self(rawValue: HostOS.MSG_TRUNC)
-    
-    /**
-     Control data lost before delivery
-     
-     Indicates that some control data were discarded due to lack of space in
-     the buffer for ancillary data.
-     */
-    public static let controlDataTruncated = Self(rawValue: HostOS.MSG_CTRUNC)
-    
-    /**
-     Out-of-band data
-     
-     Indicates that expedited or out-of-band data were received.
-     */
-    public static let outOfBand = Self(rawValue: HostOS.MSG_OOB)
-    
-    public static var all: MessageFlags = Self(
-        [
-            .endOfRecord,
-            .messageTruncated,
-            .controlDataTruncated,
-            outOfBand,
-        ]
-    )
-
-    // -------------------------------------
-    public init(rawValue: RawValue) {
-        self.rawValue = rawValue
-    }
-}
-
 // -------------------------------------
 /**
- Swift-side proxy for `HostOS.msghdr`
+ Swift-side proxy for `HostOS.msghdr` as used with `recvmsg`
+ 
+ - Note: Attempts to send multiple `ControlMessage`s in testing on macOS have,
+    so far, always resulted in an invalid argument error.  After doing some
+    digging, [this discussion](https://tech.openbsd.narkive.com/w8dC35JD/multiple-cmsghdrs-in-msghdr)
+    suggests that disallowing multiple control messages is intentional on some Unix variants, including macOS,
+    because of security issues.
+ 
+    Because of that, `NIX` defines different message structures for sending and
+    receiving.   The `MessageToSend` is defined with just a an option
+    `controlMessage` property, while `MessageToReceive` defines a
+    `controlMessages` property that is an array.  In this way one can still
+    receive multiple control messages, which may be inserted by the protocol,
+    but only send a single control message..
  */
-public struct Message
+public struct MessageToReceive: MessageProtocol
 {
     /// optional address - specifies destination address if socket is unconnected
     public var messageName: Data? = nil
@@ -87,27 +65,33 @@ public struct Message
 }
 
 // -------------------------------------
-internal extension Message
+internal extension MessageToReceive
 {
     // -------------------------------------
     @usableFromInline var controlMessageArrayBytes: Int {
-        return controlMessages.reduce(0) { $0 + align_(Int($1.len)) }
+        return controlMessages.reduce(0) { $0 + align(Int($1.storage.count)) }
     }
     
     // -------------------------------------
-    func dataFromControlMessages() -> Data
+    func gatherDataFromControlMessages() -> Data
     {
         let dataLen = controlMessageArrayBytes
         var data = Data(capacity: dataLen)
-        for controlMessage in controlMessages {
+        for controlMessage in controlMessages
+        {
             data.append(controlMessage.storage)
+            padAlign(&data)
+            assert(data.count == ControlMessage.align(data.count))
         }
+        assert(data.count == ControlMessage.align(data.count))
         return data
     }
     
     // -------------------------------------
-    mutating func dataToControlMessages(_ data: Data)
+    mutating func scatterDataToControlMessages(_ data: Data)
     {
+        assert(data.count == align(data.count))
+        
         var data = data[...]
         for i in controlMessages.indices
         {
@@ -123,36 +107,8 @@ internal extension Message
             { (ptr: UnsafeMutableRawBufferPointer) in
                 data.copyBytes(to: ptr, count: messageSize)
             }
-            controlMessages[i].storage.resetBytes(in: messageSize...)
             
             data = data.nextControlMessage() ?? data
-        }
-    }
-    
-    // -------------------------------------
-    @usableFromInline
-    func withMsgHdr<R>(
-        _ block: (UnsafePointer<HostOS.msghdr>) throws -> R) rethrows -> R
-    {
-        let namePtr = messageName?.unsafeDataPointer()
-        var iovecs = messages.iovecs()
-
-        let controlMessageData = dataFromControlMessages()
-        let ctrlPtr = controlMessageData.unsafeDataPointer()
-        
-        return try iovecs.withUnsafeMutableBufferPointer
-        {
-            let hdr = HostOS.msghdr(
-                msg_name: namePtr,
-                msg_namelen: socklen_t(messageName?.count ?? 0),
-                msg_iov: $0.baseAddress,
-                msg_iovlen: Int32($0.count),
-                msg_control: ctrlPtr,
-                msg_controllen: socklen_t(controlMessageData.count),
-                msg_flags: flags.rawValue
-            )
-            
-            return try withUnsafePointer(to: hdr) { return try block($0) }
         }
     }
     
@@ -165,7 +121,7 @@ internal extension Message
         let namePtr = messageName?.unsafeDataPointer()
         var iovecs = messages.iovecs()
 
-        var controlMessageData = dataFromControlMessages()
+        var controlMessageData = gatherDataFromControlMessages()
         let ctrlPtr = controlMessageData.unsafeMutableDataPointer()
 
         return try iovecs.withUnsafeMutableBufferPointer
@@ -185,8 +141,8 @@ internal extension Message
             let result = try withUnsafeMutablePointer(to: &hdr) {
                 return try block($0)
             }
-            
-            dataToControlMessages(controlMessageData)
+
+            scatterDataToControlMessages(controlMessageData)
             
             // if pointers in hdr have changed, we need to copy the new data
             // I don't think this happens, but if it does, we need to handle it

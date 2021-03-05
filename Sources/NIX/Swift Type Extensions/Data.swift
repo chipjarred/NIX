@@ -20,8 +20,80 @@
 
 import Foundation
 
-extension Data
+public extension Data
 {
+    // -------------------------------------
+    /**
+     Add padding to the receiving Data instance so that its `count` is 16-bit
+     aligned.
+
+     - Parameter padValue: 8-bit value to use for padding bytes.
+     */
+    @inlinable
+    mutating func pad16(padValue: UInt8 = 0) {
+        padEnd(padValue: padValue, toAlignWith: UInt16.self)
+    }
+    
+    // -------------------------------------
+    /**
+     Add padding to the receiving Data instance so that its `count` is 32-bit
+     aligned.
+
+     - Parameter padValue: 8-bit value to use for padding bytes.
+     */
+    @inlinable
+    mutating func pad32(padValue: UInt8 = 0) {
+        padEnd(padValue: padValue, toAlignWith: UInt32.self)
+    }
+
+    // -------------------------------------
+    /**
+     Add padding to the receiving Data instance so that its `count` is 64-bit
+     aligned.
+     
+     - Parameter padValue: 8-bit value to use for padding bytes.
+     */
+    @inlinable
+    mutating func pad64(padValue: UInt8 = 0) {
+        padEnd(padValue: padValue, toAlignWith: UInt64.self)
+    }
+    
+    // -------------------------------------
+    /**
+     Add padding to the receiving Data instance so that its `count` is evenly
+     divisible by the size of the specified `FixedWidthInteger` type
+     
+     - Parameter padValue: 8-bit value to use for padding bytes.
+     */
+    @usableFromInline @inline(__always)
+    internal mutating func padEnd<T: FixedWidthInteger>(
+        padValue: UInt8,
+        toAlignWith type: T.Type)
+    {
+        let paddingCount = self.count % MemoryLayout<T>.size
+        var i = 0
+        while i < paddingCount
+        {
+            append(padValue)
+            i += 1
+        }
+    }
+    
+    // -------------------------------------
+    /**
+     Append the bytes of `value` to the receiving `Data` instance
+     
+     - Parameter value: Any value conforming to `ContiguousBytes` whose bytes
+        are to be appended.
+     */
+    @inlinable
+    mutating func appendBytes<T:ContiguousBytes>(of value: T)
+    {
+        value.withUnsafeBytes {
+            self.append(contentsOf: $0)
+        }
+    }
+    
     // -------------------------------------
     /**
         **UNSAFE - UNSAFE - UNSAFE - UNSAFE - UNSAFE**

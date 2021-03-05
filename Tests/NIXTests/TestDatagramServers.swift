@@ -40,7 +40,7 @@ class DatagramServer
         set { termMutex.withLock { _shouldTerminate = newValue } }
     }
     
-    var controlMessages: [ControlMessage]? = nil
+    var useSendMessage = false
     
     // -------------------------------------
     init()
@@ -213,7 +213,7 @@ class DatagramServer
         to socket: SocketIODescriptor,
         at address: SocketAddress) -> Result<Int, NIX.Error>
     {
-        if let controlMessages = self.controlMessages
+        if useSendMessage
         {
             let fd = dup(socket.descriptor)
             let controlMessage = ControlMessage(
@@ -221,12 +221,11 @@ class DatagramServer
                 type: HostOS.SCM_RIGHTS,
                 messageData: withUnsafeBytes(of: fd) { Data($0) }
             )
-            var newControlMessages = controlMessages
-            newControlMessages.insert(controlMessage, at: 0)
-            let message = Message(
+            
+            let message = MessageToSend(
                 messageName: withUnsafeBytes(of: address) { Data($0) },
                 messages: [data],
-                controlMessages: [controlMessage],
+                controlMessage: controlMessage,
                 flags: .none
             )
             
