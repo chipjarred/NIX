@@ -503,6 +503,22 @@ public func recvfrom(
 }
 
 // -------------------------------------
+@inlinable
+public func recvmsg(
+    _ socket: SocketIODescriptor,
+    _ message: inout Message,
+    _ flags: RecvFlags) -> Result<Int, Error>
+{
+    return message.withMutableMsgHdr
+    {
+        let bytesRead = HostOS.recvmsg(socket.descriptor, $0, flags.rawValue)
+        return bytesRead == -1
+            ? .failure(Error())
+            : .success(bytesRead)
+    }
+}
+
+// -------------------------------------
 /**
  Send data to a coonnected or accepted socket.
  
@@ -571,5 +587,21 @@ public func sendto(
                 ? .failure(Error())
                 : .success(bytesWritten)
         }
+    }
+}
+
+// -------------------------------------
+@inlinable
+public func sendmsg(
+    _ socket: SocketIODescriptor,
+    _ message: Message,
+    _ flags: RecvFlags) -> Result<Int, Error>
+{
+    return message.withMsgHdr
+    {
+        let bytesWritten = HostOS.sendmsg(socket.descriptor, $0, flags.rawValue)
+        return bytesWritten == -1
+            ? .failure(Error())
+            : .success(bytesWritten)
     }
 }

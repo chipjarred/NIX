@@ -40,6 +40,8 @@ class DatagramServer
         set { termMutex.withLock { _shouldTerminate = newValue } }
     }
     
+    var controlMessages: [ControlMessage]? = nil
+    
     // -------------------------------------
     init()
     {
@@ -178,7 +180,7 @@ class DatagramServer
                     continue
                 }
                 
-                switch NIX.sendto(serverSocket, response, .none, pAddress)
+                switch self.doSend(response, to: serverSocket, at: pAddress)
                 {
                     case .success(let bytesWritten):
                         if bytesWritten != response.count {
@@ -203,6 +205,36 @@ class DatagramServer
         guard let handler = messageReceiptHandler else { return nil }
         
         return handler(clientData)
+    }
+    
+    // -------------------------------------
+    func doSend(
+        _ data: Data,
+        to socket: SocketIODescriptor,
+        at address: SocketAddress) -> Result<Int, NIX.Error>
+    {
+        if let controlMessages = self.controlMessages
+        {
+            let fd = dup(socket.descriptor)
+            let controlMessage = ControlMessage(
+                level: HostOS.SOL_SOCKET,
+                type: HostOS.SCM_RIGHTS,
+                messageData: withUnsafeBytes(of: fd) { Data($0) }
+            )
+            var newControlMessages = controlMessages
+            newControlMessages.insert(controlMessage, at: 0)
+            let message = Message(
+                messageName: withUnsafeBytes(of: address) { Data($0) },
+                messages: [data],
+                controlMessages: [controlMessage],
+                flags: .none
+            )
+            
+            return NIX.sendmsg(socket, message, .none)
+        }
+        else {
+            return NIX.sendto(socket, data, .none, address)
+        }
     }
 }
 
