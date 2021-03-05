@@ -106,6 +106,14 @@ public struct ControlMessage
     }
     
     @usableFromInline internal var storage: Data
+    
+    // -------------------------------------
+    @usableFromInline @inline(__always)
+    internal init(storage: Data)
+    {
+        assert(storage.count >= Self.align(Self.cmsghdrSize))
+        self.storage = storage
+    }
 
     // -------------------------------------
     @inlinable
@@ -159,7 +167,7 @@ internal extension Data.SubSequence
         
         let newStart = startIndex + ControlMessage.align(Int(current.cmsg_len))
         
-        guard newStart <= endIndex else { return nil }
+        guard newStart < endIndex else { return nil }
         
         return self[newStart...]
     }

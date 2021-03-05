@@ -393,8 +393,6 @@ final class DatagramSocket_UnitTests: XCTestCase
         var msg = MessageToReceive(
             messageName: Data(repeating: 0, count: MemoryLayout<HostOS.sockaddr_un>.size),
             messages: [Data(repeating: 0, count: 1024)],
-            controlMessages: [ControlMessage](
-                repeating: ControlMessage(messageCapacity: 1024), count: 5),
             flags: .none
         )
         switch NIX.recvmsg(socket, &msg, .none)

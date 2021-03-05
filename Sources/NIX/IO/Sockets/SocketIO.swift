@@ -503,6 +503,15 @@ public func recvfrom(
 }
 
 // -------------------------------------
+/**
+ - Note: On entry, `message.messages` should be preallocated similarly as with
+    `readv`.
+ 
+    On exit, the `message.messages` read will be filled, and
+    `message.controlMessages` will be filled if there are control messages.
+    `message.controlMessages` does not need to be pre-allocated.
+ */
+
 @inlinable
 public func recvmsg(
     _ socket: SocketIODescriptor,

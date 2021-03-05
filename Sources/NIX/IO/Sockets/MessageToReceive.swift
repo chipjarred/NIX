@@ -54,12 +54,11 @@ public struct MessageToReceive: MessageProtocol
     public init(
         messageName: Data?,
         messages: [Data],
-        controlMessages: [ControlMessage] = [],
         flags: MessageFlags = .none)
     {
         self.messageName = messageName
         self.messages = messages
-        self.controlMessages = controlMessages
+        self.controlMessages = []
         self.flags = flags
     }
 }
@@ -68,45 +67,18 @@ public struct MessageToReceive: MessageProtocol
 internal extension MessageToReceive
 {
     // -------------------------------------
-    @usableFromInline var controlMessageArrayBytes: Int {
-        return controlMessages.reduce(0) { $0 + align(Int($1.storage.count)) }
-    }
-    
-    // -------------------------------------
-    func gatherDataFromControlMessages() -> Data
-    {
-        let dataLen = controlMessageArrayBytes
-        var data = Data(capacity: dataLen)
-        for controlMessage in controlMessages
-        {
-            data.append(controlMessage.storage)
-            padAlign(&data)
-            assert(data.count == ControlMessage.align(data.count))
-        }
-        assert(data.count == ControlMessage.align(data.count))
-        return data
-    }
-    
-    // -------------------------------------
     mutating func scatterDataToControlMessages(_ data: Data)
     {
+        assert(controlMessages.count == 0)
         assert(data.count == align(data.count))
         
         var data = data[...]
-        for i in controlMessages.indices
+        while let hdr = data.getControlMessageHeader(),
+              hdr.cmsg_len >= MemoryLayout<HostOS.cmsghdr>.size
         {
-            guard let hdr = data.getControlMessageHeader() else
-            {
-                controlMessages[i].storage.resetBytes(in: 0...)
-                continue
-            }
-            
-            let messageSize = Int(hdr.cmsg_len)
-            
-            let _ = controlMessages[i].storage.withUnsafeMutableBytes
-            { (ptr: UnsafeMutableRawBufferPointer) in
-                data.copyBytes(to: ptr, count: messageSize)
-            }
+            let messageEnd = data.startIndex + Int(hdr.cmsg_len)
+        
+            controlMessages.append(ControlMessage(storage: data[..<messageEnd]))
             
             data = data.nextControlMessage() ?? data
         }
@@ -121,7 +93,7 @@ internal extension MessageToReceive
         let namePtr = messageName?.unsafeDataPointer()
         var iovecs = messages.iovecs()
 
-        var controlMessageData = gatherDataFromControlMessages()
+        var controlMessageData = Data.init(repeating: 0, count: 4096)
         let ctrlPtr = controlMessageData.unsafeMutableDataPointer()
 
         return try iovecs.withUnsafeMutableBufferPointer
@@ -144,7 +116,7 @@ internal extension MessageToReceive
 
             scatterDataToControlMessages(controlMessageData)
             
-            // if pointers in hdr have changed, we need to copy the new data
+            // If pointers in hdr have changed, we need to copy the new data
             // I don't think this happens, but if it does, we need to handle it
             if Int(bitPattern: hdr.msg_name) != Int(bitPattern: namePtr)
             {
