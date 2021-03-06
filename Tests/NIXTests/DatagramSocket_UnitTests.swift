@@ -9,6 +9,8 @@ final class DatagramSocket_UnitTests: XCTestCase
         ("test_ip4_client_can_connect_to_server", test_ip4_client_can_connect_to_server),
         ("test_ip6_client_can_connect_to_server", test_ip6_client_can_connect_to_server),
         ("test_unix_domain_client_can_connect_to_server", test_unix_domain_client_can_connect_to_server),
+        ("test_unix_domain_recvmsg_sets_cmsg_level_and_cmsg_type", test_unix_domain_recvmsg_sets_cmsg_level_and_cmsg_type),
+        ("test_socket_pair_can_send_and_receive_messages_from_each_other", test_socket_pair_can_send_and_receive_messages_from_each_other),
     ]
     
     // -------------------------------------
@@ -414,5 +416,71 @@ final class DatagramSocket_UnitTests: XCTestCase
         
         XCTAssertEqual(msg.controlMessages[0].level, HostOS.SOL_SOCKET)
         XCTAssertEqual(msg.controlMessages[0].type, HostOS.SCM_RIGHTS)
+    }
+    
+    // -------------------------------------
+    func test_socket_pair_can_send_and_receive_messages_from_each_other()
+    {
+        func makePair() -> (SocketIODescriptor, SocketIODescriptor)?
+        {
+            switch NIX.socketpair(.local, .datagram, .ip)
+            {
+                case .success(let pair): return pair
+                case .failure(let error):
+                    XCTFail("socketpair() failed: \(error)")
+                    return nil
+            }
+        }
+        
+        guard let sockets = makePair() else { return }
+        
+        defer
+        {
+            _ = NIX.close(sockets.0)
+            _ = NIX.close(sockets.1)
+        }
+        
+        let message0 = "Socket 0 to socket 1".data(using: .utf8)!
+        let message1 = "Socket 1 to socket 0".data(using: .utf8)!
+        
+        switch NIX.write(sockets.0, message0)
+        {
+            case .success(let bytesWritten):
+                XCTAssertEqual(bytesWritten, message0.count)
+            case .failure(let error):
+                XCTFail("Error writing on socket 0: \(error)")
+                return
+        }
+        
+        var readBuffer = Data(repeating: 0, count: 128)
+        switch NIX.read(sockets.1, &readBuffer)
+        {
+            case .success(let bytesRead):
+                XCTAssertEqual(bytesRead, message0.count)
+                XCTAssertEqual(readBuffer[0..<bytesRead], message0)
+            case .failure(let error):
+                XCTFail("Error reading on socket 1: \(error)")
+                return
+        }
+        
+        switch NIX.write(sockets.1, message1)
+        {
+            case .success(let bytesWritten):
+                XCTAssertEqual(bytesWritten, message1.count)
+            case .failure(let error):
+                XCTFail("Error writing on socket 1: \(error)")
+                return
+        }
+        
+        readBuffer.resetBytes(in: ..<readBuffer.endIndex)
+        switch NIX.read(sockets.0, &readBuffer)
+        {
+            case .success(let bytesRead):
+                XCTAssertEqual(bytesRead, message1.count)
+                XCTAssertEqual(readBuffer[0..<bytesRead], message1)
+            case .failure(let error):
+                XCTFail("Error reading on socket 0: \(error)")
+                return
+        }
     }
 }

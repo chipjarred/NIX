@@ -127,6 +127,103 @@ public func socket(
 
 // -------------------------------------
 /**
+ Create an unnamed pair of connected sockets in the specified domain domain, of
+ the specified type, and using the optionally specified protocol. The two
+ sockets are indistinguishable.
+
+ - Parameters:
+    - domain: specifies a communications domain within which communication will
+        take place; this selects the protocol family which should be used.
+        These families are defined in the include file <sys/socket.h>. The
+        currently understood formats are
+         - `.local`: Host-internal protocols, formerly called `.unix`
+         - `.unix`: Host-internal protocols, deprecated, use `.local`
+         - `.inet4`: Internet version 4 protocols
+         - `.route`: Internal Routing protocol
+         - `.key`: Internal key-management function
+         - `.inet6`: Internet version 6 protocols
+         - `.system`: System domain
+         - `.rawNetworkDevice`: Raw access to network device
+ 
+    - socketType: specifies the semantics of communication.  Currently defined
+            types are:
+         - `.stream`: provides sequenced, reliable, two-way connection based
+                byte streams.  An out-of-band data transmission mechanism may
+                be supported.
+         - `.datagram`: supports datagrams (connectionless, unreliable messages
+                of a fixed, typically small, maximum length).
+         - `.raw`: provide access to internal network protocols and interfaces.
+                The type `.raw`, which is available only to the super-user.
+ 
+    - protocol: specifies a particular protocol to be used with the socket.
+        Normally only a single protocol exists to support a particular socket
+        type within a given protocol family.  However, it is possible that many
+        protocols may exist, in which case a particular protocol must be
+        specified in this manner.  The protocol number to use is particular to
+        the communication domain in which communication is to take place.
+ 
+ Sockets of type `.stream` are full-duplex byte streams, similar to
+ pipes.  A stream socket must be in a connected state before any data may
+ be sent or received on it.  A connection to another socket is created
+ with a `connect` or `connectx` call.  Once connected, data may be
+ transferred using `read` and `write` calls or some variant of the
+ `send` and `recv` calls.  When a session has been completed a `close`
+ may be performed.  Out-of-band data may also be transmitted as described
+ in `send` and received as described in `recv`.
+ 
+ The communications protocols used to implement a `.stream` insure that
+ data is not lost or duplicated.  If a piece of data for which the peer
+ protocol has buffer space cannot be successfully transmitted within a
+ reasonable length of time, then the connection is considered broken and
+ calls will return an `Error` containing `ETIMEDOUT` as the specific error code.
+ The protocols optionally keep sockets "warm" by forcing transmissions roughly
+ every minute in the absence of other activity.  An error is then indicated if
+ no response can be elicited on an otherwise idle connection for a extended
+ period (e.g. 5 minutes).
+ 
+ `.datagram` and `.raw` sockets allow sending of datagrams to correspondents
+ named in `send` calls.  Datagrams are generally received with `recvfrom`,
+ which returns the next datagram with its return address.
+ 
+ An `fcntl` call can be used to specify a process group to receive a
+ `SIGURG` signal when the out-of-band data arrives.  It may also enable non-
+ blocking I/O and asynchronous notification of I/O events via `SIGIO`.
+ 
+ The operation of sockets is controlled by socket level options.  `setsockopt`
+ and `getsockopt` are used to set and get options, respectively.
+
+ - Note: A `SIGPIPE` signal is raised if a process sends on a broken stream;
+    this causes naive processes, which do not handle the signal, to exit.
+ 
+ - Returns: On success, the returned `Result` contains the a tuple of the two
+    newly created sockets.  On failure, it contains the `Error` describing the
+    reason for the failure.
+ */
+@inlinable
+public func socketpair(
+    _ domain: SocketDomain,
+    _ socketType: SocketType,
+    _ protocol: ProtocolFamily)
+    -> Result<(SocketIODescriptor, SocketIODescriptor), Error>
+{
+    var pair = (CInt(), CInt())
+    let result = withUnsafeMutableBytes(of: &pair)
+    { pairPtr in
+        return HostOS.socketpair(
+            domain.rawValue,
+            socketType.rawValue,
+            `protocol`.rawValue,
+            pairPtr.baseAddress!.bindMemory(to: CInt.self, capacity: 2)
+        )
+    }
+    
+    return result == -1
+        ? .failure(Error())
+        : .success((SocketDescriptor(pair.0), SocketDescriptor(pair.1)))
+}
+
+// -------------------------------------
+/**
  Assign a name to an unnamed socket.
  
  When a socket is created with `socket` it exists in a name space (address
