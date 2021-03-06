@@ -93,7 +93,9 @@ internal extension MessageToReceive
         let namePtr = messageName?.unsafeDataPointer()
         var iovecs = messages.iovecs()
 
-        var controlMessageData = Data.init(repeating: 0, count: 4096)
+        var controlMessageData = ControlMessageBufferCache.allocate()
+        defer { ControlMessageBufferCache.deallocate(&controlMessageData) }
+        
         let ctrlPtr = controlMessageData.unsafeMutableDataPointer()
 
         return try iovecs.withUnsafeMutableBufferPointer
