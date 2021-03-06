@@ -2,7 +2,7 @@ import XCTest
 @testable import NIX
 
 // -------------------------------------
-final class NIXTests: XCTestCase
+final class StreamSocket_UnitTests: XCTestCase
 {
     static var allTests =
     [
