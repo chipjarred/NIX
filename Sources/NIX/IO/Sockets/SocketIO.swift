@@ -504,14 +504,38 @@ public func recvfrom(
 
 // -------------------------------------
 /**
- - Note: On entry, `message.messages` should be preallocated similarly as with
-    `readv`.
+ Receive data from a socket using a `MessageToReceive` structure (which is a
+ proxy for POSIX.1's `msghdr` structure).
  
-    On exit, the `message.messages` read will be filled, and
-    `message.controlMessages` will be filled if there are control messages.
-    `message.controlMessages` does not need to be pre-allocated.
- */
-
+ This is the most flexible receive call.  It allows specifying flags, a sender
+ address (in `message.name`, scatter input (similar to `readv`) into
+ `message.messages`, and ancilialry data in `message.controlMessages`.
+ 
+ The caller must provide pre-allocated `Data` buffers to receive message data.
+ The `controlMessages` array is populated automatically, however.
+ `.controlMessages` contain auxilliary data specific to the protocol and domain
+ being used.
+ 
+ On return, `message.flags` may contain one or more of the following
+ `MessageFlags`:
+    - `.endOfRecord`: Data completes record
+    - `.messageTruncated`: Indicates that the trailing portion of a datagram
+        was discarded because the datagram was larger than the buffer supplied.
+    - `.controlDataTruncated`: Indicates that some control data were discarded
+        due to lack of space in the buffer for ancillary data.
+    - `.outOfBand`: Indicates that expedited or out-of-band data were received.
+ 
+ - Parameters:
+    - socket: The `SocketIODescriptor` to use for receiving data.
+    - message: A `MessageToReceive` struct providing an array of pre-allocated
+        `Data` instances to receive data (see `readv` for more information on
+        how they are filled.)
+    - flags: `RecvFlags` allowign modification of data receipt behavior.
+ 
+ - Returns: On success, the returned value is a `Result` containing the total
+    number of bytes received.  On failure, the returned `Result` contains the
+    `Error` describing the reason for the failure.
+*/
 @inlinable
 public func recvmsg(
     _ socket: SocketIODescriptor,
@@ -600,11 +624,31 @@ public func sendto(
 }
 
 // -------------------------------------
+/**
+ Send data to a socket using a `MessageToSend` structure (which is a proxy for
+ POSIX.1's `msghdr`).
+ 
+ This is the most flexible send call.  It allows specifiing flags, a receiver
+ address (in `message.name`), an array of `Data` instances  whose bytes are
+ gathered and sent in a similar fashion as `writev`, and the ability to specify
+ a `ControlMessage` (which is proxy for POSIX.1's `cmsghdr`).
+ 
+ - Parameters:
+    - socket: socket to use for sending the data
+    - message: A `MessageToSend` instance whose `messages` array property
+        contain `Data` instances whose bytes are the be gathered to send, and
+        an optional `ControlMessage`.
+    - flags: `SendFlags` to be used to alter the behavior of `sendmsg`.
+ 
+ - Returns: On success, a `Result` is returned containing the total number of
+    bytes sent.  On failure, the returned `Result` contains an `Error`
+    describing the reason for the failure.
+ */
 @inlinable
 public func sendmsg(
     _ socket: SocketIODescriptor,
     _ message: MessageToSend,
-    _ flags: RecvFlags) -> Result<Int, Error>
+    _ flags: SendFlags) -> Result<Int, Error>
 {
     return message.withMsgHdr
     {

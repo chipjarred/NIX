@@ -39,7 +39,7 @@ import Foundation
 public struct MessageToReceive: MessageProtocol
 {
     /// optional address - specifies destination address if socket is unconnected
-    public var messageName: Data? = nil
+    public var name: Data? = nil
     
     /// scatter/gather array
     public var messages: [Data] = []
@@ -56,7 +56,7 @@ public struct MessageToReceive: MessageProtocol
         messages: [Data],
         flags: MessageFlags = .none)
     {
-        self.messageName = messageName
+        self.name = messageName
         self.messages = messages
         self.controlMessages = []
         self.flags = flags
@@ -90,7 +90,7 @@ internal extension MessageToReceive
         _ block: (UnsafeMutablePointer<HostOS.msghdr>) throws -> R) rethrows
         -> R
     {
-        let namePtr = messageName?.unsafeDataPointer()
+        let namePtr = name?.unsafeDataPointer()
         var iovecs = messages.iovecs()
 
         var controlMessageData = ControlMessageBufferCache.allocate()
@@ -100,7 +100,7 @@ internal extension MessageToReceive
 
         return try iovecs.withUnsafeMutableBufferPointer
         {
-            let nameLen = socklen_t(messageName?.count ?? 0)
+            let nameLen = socklen_t(name?.count ?? 0)
             
             var hdr = HostOS.msghdr(
                 msg_name: namePtr,
@@ -122,7 +122,7 @@ internal extension MessageToReceive
             // I don't think this happens, but if it does, we need to handle it
             if Int(bitPattern: hdr.msg_name) != Int(bitPattern: namePtr)
             {
-                self.messageName =
+                self.name =
                     Data(bytes: hdr.msg_name, count: Int(hdr.msg_namelen))
             }
                         
