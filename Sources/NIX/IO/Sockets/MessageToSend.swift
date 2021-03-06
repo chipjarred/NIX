@@ -90,29 +90,28 @@ internal extension MessageToSend
     func withMsgHdr<R>(
         _ block: (UnsafePointer<HostOS.msghdr>) throws -> R) rethrows -> R
     {
-        let nameData: Data? = name == nil
-            ? nil
-            : withUnsafeBytes(of: name) { Data($0) }
-        
-        let namePtr = nameData?.unsafeDataPointer()
         var iovecs = messages.iovecs()
 
         let controlMessageData = gatherDataFromControlMessages()
         let ctrlPtr = controlMessageData?.unsafeDataPointer()
         
-        return try iovecs.withUnsafeMutableBufferPointer
-        {
-            let hdr = HostOS.msghdr(
-                msg_name: namePtr,
-                msg_namelen: socklen_t(nameData?.count ?? 0),
-                msg_iov: $0.baseAddress,
-                msg_iovlen: Int32($0.count),
-                msg_control: ctrlPtr,
-                msg_controllen: socklen_t(controlMessageData?.count ?? 0),
-                msg_flags: 0
-            )
-            
-            return try withUnsafePointer(to: hdr) { return try block($0) }
+        var name = self.name
+        return try withUnsafeMutableBytes(of: &name)
+        { namePtr in
+            return try iovecs.withUnsafeMutableBufferPointer
+            {
+                let hdr = HostOS.msghdr(
+                    msg_name: namePtr.baseAddress,
+                    msg_namelen: socklen_t(namePtr.count),
+                    msg_iov: $0.baseAddress,
+                    msg_iovlen: Int32($0.count),
+                    msg_control: ctrlPtr,
+                    msg_controllen: socklen_t(controlMessageData?.count ?? 0),
+                    msg_flags: 0
+                )
+                
+                return try withUnsafePointer(to: hdr) { return try block($0) }
+            }
         }
     }
 }

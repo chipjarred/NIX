@@ -44,7 +44,9 @@ internal struct ControlMessageBufferCache
     @usableFromInline @inline(__always)
     static func deallocate(_ data: inout Data)
     {
-        assert(data.count == bufferSize, "returning incorrecctly sized data")
+        assert(data.count == bufferSize, "returning incorrectly sized data")
+        
+        // Zero-fill returned Data instances for security reasons.
         data.resetBytes(in: data.startIndex..<data.endIndex)
 
         cacheLock.withLock { cache.append(data) }

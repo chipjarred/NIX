@@ -90,11 +90,6 @@ internal extension MessageToReceive
         _ block: (UnsafeMutablePointer<HostOS.msghdr>) throws -> R) rethrows
         -> R
     {
-        var nameData: Data? = name == nil
-            ? nil
-            : withUnsafeBytes(of: name) { Data($0) }
-        
-        let namePtr = nameData?.unsafeDataPointer()
         var iovecs = messages.iovecs()
 
         var controlMessageData = ControlMessageBufferCache.allocate()
@@ -102,57 +97,50 @@ internal extension MessageToReceive
         
         let ctrlPtr = controlMessageData.unsafeMutableDataPointer()
 
-        return try iovecs.withUnsafeMutableBufferPointer
-        {
-            let nameLen = socklen_t(nameData?.count ?? 0)
-            
-            var hdr = HostOS.msghdr(
-                msg_name: namePtr,
-                msg_namelen: nameLen,
-                msg_iov: $0.baseAddress,
-                msg_iovlen: Int32($0.count),
-                msg_control: ctrlPtr,
-                msg_controllen: socklen_t(controlMessageData.count),
-                msg_flags: flags.rawValue
-            )
-            
-            let result = try withUnsafeMutablePointer(to: &hdr) {
-                return try block($0)
-            }
-
-            scatterDataToControlMessages(controlMessageData)
-            
-            // If pointers in hdr have changed, we need to copy the new data
-            // I don't think this happens, but if it does, we need to handle it
-            if Int(bitPattern: hdr.msg_name) != Int(bitPattern: namePtr)
+        let result: R = try withUnsafeMutableBytes(of: &name)
+        { namePtr in
+            return try iovecs.withUnsafeMutableBufferPointer
             {
-                nameData?.withUnsafeMutableBytes
+                var hdr = HostOS.msghdr(
+                    msg_name: namePtr.baseAddress,
+                    msg_namelen: socklen_t(namePtr.count),
+                    msg_iov: $0.baseAddress,
+                    msg_iovlen: Int32($0.count),
+                    msg_control: ctrlPtr,
+                    msg_controllen: socklen_t(controlMessageData.count),
+                    msg_flags: flags.rawValue
+                )
+                
+                defer
                 {
-                    self.name = $0.baseAddress?
-                        .bindMemory(to: SocketAddress.self, capacity: 1).pointee
+                    #if DEBUG
+                    /*
+                     I've defined all the flags that are stated on the man page
+                     for recvmsg; however, Darwin defines more.  So this check
+                     is to determine if they are used in user-land messages.
+                     They might only be used internally.
+                     */
+                    if hdr.msg_flags & MessageFlags.all.rawValue != 0
+                    {
+                        print(
+                            "\(#file):\(#line):\(#function):"
+                            + "msg_flags contains unknown flag bits = "
+                            + "\(hdr.msg_flags & MessageFlags.all.rawValue)"
+                        )
+                    }
+                    #endif
+                    
+                    self.flags = MessageFlags(rawValue: hdr.msg_flags)
+                }
+                
+                return try withUnsafeMutablePointer(to: &hdr) {
+                    return try block($0)
                 }
             }
-                        
-            #if DEBUG
-            /*
-             I've defined all the flags that are stated on the man page for
-             recvmsg; however, Darwin defines more.  So this check is to
-             determine if they are used in user-land messages.  They might only
-             be used internally.
-             */
-            if hdr.msg_flags & MessageFlags.all.rawValue != 0
-            {
-                print(
-                    "\(#file):\(#line):\(#function):"
-                    + "msg_flags contains unknown flag bits = "
-                    + "\(hdr.msg_flags & MessageFlags.all.rawValue)"
-                )
-            }
-            #endif
-            
-            self.flags = MessageFlags(rawValue: hdr.msg_flags)
-            
-            return result
         }
+
+        scatterDataToControlMessages(controlMessageData)
+        
+        return result
     }
 }
