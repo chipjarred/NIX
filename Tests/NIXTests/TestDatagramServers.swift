@@ -223,7 +223,7 @@ class DatagramServer
             )
             
             let message = MessageToSend(
-                messageName: withUnsafeBytes(of: address) { Data($0) },
+                name: withUnsafeBytes(of: address) { Data($0) },
                 messages: [data],
                 controlMessage: controlMessage
             )

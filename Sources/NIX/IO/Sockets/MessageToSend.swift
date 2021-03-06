@@ -54,7 +54,7 @@ public extension MessageProtocol
 public struct MessageToSend: MessageProtocol
 {
     /// optional address - specifies destination address if socket is unconnected
-    public var messageName: Data? = nil
+    public var name: Data? = nil
     
     /// scatter/gather array
     public var messages: [Data] = []
@@ -64,11 +64,11 @@ public struct MessageToSend: MessageProtocol
     
     // -------------------------------------
     public init(
-        messageName: Data?,
+        name: Data?,
         messages: [Data],
         controlMessage: ControlMessage? = nil)
     {
-        self.messageName = messageName
+        self.name = name
         self.messages = messages
         self.controlMessage = controlMessage
     }
@@ -90,7 +90,7 @@ internal extension MessageToSend
     func withMsgHdr<R>(
         _ block: (UnsafePointer<HostOS.msghdr>) throws -> R) rethrows -> R
     {
-        let namePtr = messageName?.unsafeDataPointer()
+        let namePtr = name?.unsafeDataPointer()
         var iovecs = messages.iovecs()
 
         let controlMessageData = gatherDataFromControlMessages()
@@ -100,7 +100,7 @@ internal extension MessageToSend
         {
             let hdr = HostOS.msghdr(
                 msg_name: namePtr,
-                msg_namelen: socklen_t(messageName?.count ?? 0),
+                msg_namelen: socklen_t(name?.count ?? 0),
                 msg_iov: $0.baseAddress,
                 msg_iovlen: Int32($0.count),
                 msg_control: ctrlPtr,
