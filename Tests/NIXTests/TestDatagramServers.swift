@@ -225,8 +225,7 @@ class DatagramServer
             let message = MessageToSend(
                 messageName: withUnsafeBytes(of: address) { Data($0) },
                 messages: [data],
-                controlMessage: controlMessage,
-                flags: .none
+                controlMessage: controlMessage
             )
             
             return NIX.sendmsg(socket, message, .none)

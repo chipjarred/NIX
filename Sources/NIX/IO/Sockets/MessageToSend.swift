@@ -62,20 +62,15 @@ public struct MessageToSend: MessageProtocol
     /// ancillary data
     public var controlMessage: ControlMessage?
     
-    /// flags on received message
-    public var flags: MessageFlags = .none
-    
     // -------------------------------------
     public init(
         messageName: Data?,
         messages: [Data],
-        controlMessage: ControlMessage? = nil,
-        flags: MessageFlags = .none)
+        controlMessage: ControlMessage? = nil)
     {
         self.messageName = messageName
         self.messages = messages
         self.controlMessage = controlMessage
-        self.flags = flags
     }
 }
 
@@ -110,7 +105,7 @@ internal extension MessageToSend
                 msg_iovlen: Int32($0.count),
                 msg_control: ctrlPtr,
                 msg_controllen: socklen_t(controlMessageData?.count ?? 0),
-                msg_flags: flags.rawValue
+                msg_flags: 0
             )
             
             return try withUnsafePointer(to: hdr) { return try block($0) }
