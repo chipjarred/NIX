@@ -39,7 +39,7 @@ import Foundation
 public struct MessageToReceive: MessageProtocol
 {
     /// optional address - specifies destination address if socket is unconnected
-    public var name: Data? = nil
+    public var name: SocketAddress? = nil
     
     /// scatter/gather array
     public var messages: [Data] = []
@@ -52,11 +52,11 @@ public struct MessageToReceive: MessageProtocol
     
     // -------------------------------------
     public init(
-        messageName: Data?,
+        name: SocketAddress?,
         messages: [Data],
         flags: MessageFlags = .none)
     {
-        self.name = messageName
+        self.name = name
         self.messages = messages
         self.controlMessages = []
         self.flags = flags
@@ -90,7 +90,11 @@ internal extension MessageToReceive
         _ block: (UnsafeMutablePointer<HostOS.msghdr>) throws -> R) rethrows
         -> R
     {
-        let namePtr = name?.unsafeDataPointer()
+        var nameData: Data? = name == nil
+            ? nil
+            : withUnsafeBytes(of: name) { Data($0) }
+        
+        let namePtr = nameData?.unsafeDataPointer()
         var iovecs = messages.iovecs()
 
         var controlMessageData = ControlMessageBufferCache.allocate()
@@ -100,7 +104,7 @@ internal extension MessageToReceive
 
         return try iovecs.withUnsafeMutableBufferPointer
         {
-            let nameLen = socklen_t(name?.count ?? 0)
+            let nameLen = socklen_t(nameData?.count ?? 0)
             
             var hdr = HostOS.msghdr(
                 msg_name: namePtr,
@@ -122,8 +126,11 @@ internal extension MessageToReceive
             // I don't think this happens, but if it does, we need to handle it
             if Int(bitPattern: hdr.msg_name) != Int(bitPattern: namePtr)
             {
-                self.name =
-                    Data(bytes: hdr.msg_name, count: Int(hdr.msg_namelen))
+                nameData?.withUnsafeMutableBytes
+                {
+                    self.name = $0.baseAddress?
+                        .bindMemory(to: SocketAddress.self, capacity: 1).pointee
+                }
             }
                         
             #if DEBUG

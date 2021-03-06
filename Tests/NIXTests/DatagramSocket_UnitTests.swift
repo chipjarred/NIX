@@ -391,7 +391,7 @@ final class DatagramSocket_UnitTests: XCTestCase
         }
          
         var msg = MessageToReceive(
-            messageName: Data(repeating: 0, count: MemoryLayout<HostOS.sockaddr_un>.size),
+            name: SocketAddress(),
             messages: [Data(repeating: 0, count: 1024)],
             flags: .none
         )
