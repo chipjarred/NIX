@@ -31,16 +31,18 @@ extension sockaddr_un: HostOSSocketAddress { }
 public struct SocketAddress
 {
     // Storage should be the largest socket address type supported by host OS
-    @usableFromInline internal typealias Storage = sockaddr_un
+    @usableFromInline internal typealias Storage = sockaddr_storage
     @usableFromInline internal var storage: Storage
     
-    public var family: AddressFamily { return storage.family }
-    public var len: UInt32 { return UInt32(storage.sun_len) }
+    public var family: AddressFamily {
+        return AddressFamily(rawValue: Int32(storage.ss_family))!
+    }
+    public var len: UInt32 { return UInt32(storage.ss_len) }
     
     // -------------------------------------
     public var asINET4: sockaddr_in?
     {
-        guard storage.sun_family == AF_INET else { return nil }
+        guard storage.ss_family == AF_INET else { return nil }
         return withPointer(to: storage, recastTo: sockaddr_in.self) {
             $0.pointee
         }
@@ -49,7 +51,7 @@ public struct SocketAddress
     // -------------------------------------
     public var asINET6: sockaddr_in6?
     {
-        guard storage.sun_family == AF_INET6 else { return nil }
+        guard storage.ss_family == AF_INET6 else { return nil }
         return withPointer(to: storage, recastTo: sockaddr_in6.self) {
             $0.pointee
         }
@@ -58,7 +60,7 @@ public struct SocketAddress
     // -------------------------------------
     public var asUnix: sockaddr_un?
     {
-        guard storage.sun_family == AF_UNIX else { return nil }
+        guard storage.ss_family == AF_UNIX else { return nil }
         return withPointer(to: storage, recastTo: sockaddr_un.self) {
             $0.pointee
         }
@@ -73,11 +75,11 @@ public struct SocketAddress
         self.storage = withPointer(to: socketAddress, recastTo: Storage.self)
         {
             #if DEBUG
-            switch Int32($0.pointee.sun_family)
+            switch Int32($0.pointee.ss_family)
             {
                 case AF_INET, AF_INET6, AF_UNIX: break
                 default: assertionFailure(
-                        "Unsupported address family: \($0.pointee.sun_family)"
+                        "Unsupported address family: \($0.pointee.ss_family)"
                     )
             }
             #endif
@@ -187,14 +189,14 @@ extension SocketAddress: CustomStringConvertible
 {
     public var description: String
     {
-        switch Int32(storage.sun_family)
+        switch Int32(storage.ss_family)
         {
             case AF_INET: return asINET4!.description
             case AF_INET6: return asINET6!.description
             case AF_UNIX : return asUnix!.description
             default:
                 assertionFailure(
-                    "Unsupported address family: \(storage.sun_family)"
+                    "Unsupported address family: \(storage.ss_family)"
                 )
                 return "<<UNSUPPORTED ADDRESS FAMILY>>"
         }
@@ -207,11 +209,11 @@ extension SocketAddress: Equatable
     // -------------------------------------
     @inlinable public static func == (left: Self, right: Self) -> Bool
     {
-        guard left.storage.sun_family == right.storage.sun_family else {
+        guard left.storage.ss_family == right.storage.ss_family else {
             return false
         }
         
-        switch Int32(left.storage.sun_family)
+        switch Int32(left.storage.ss_family)
         {
             case HostOS.AF_INET: return left.asINET4 == right.asINET4
             case HostOS.AF_INET6: return left.asINET6 == right.asINET6
