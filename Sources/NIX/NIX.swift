@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-@_exported import HostOS
+import HostOS
 
 // -------------------------------------
 /// Wrapper for standard C/Darwin's `errno`
