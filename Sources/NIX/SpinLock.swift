@@ -65,6 +65,8 @@ public struct SpinLock
     #if canImport(Darwin)
     @usableFromInline var osLock = os_unfair_lock()
     
+    @inlinable public init() { }
+    
     @usableFromInline @inline(__always)
     internal mutating func lock() { os_unfair_lock_lock(&osLock) }
     
