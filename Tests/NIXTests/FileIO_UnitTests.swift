@@ -1,6 +1,7 @@
 import Foundation
 import XCTest
 @testable import NIX
+import HostOS
 
 // -------------------------------------
 class FileIO_UnitTests: XCTestCase

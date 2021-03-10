@@ -223,6 +223,93 @@ public func socketpair(
 }
 
 // -------------------------------------
+public enum SetSocketOptions
+{
+    case reuseAddress(_ value: Bool)
+    case reusePort(_ value: Bool)
+}
+
+// -------------------------------------
+public enum GetSocketOptions
+{
+    case reuseAddress
+    case reusePort
+}
+
+// -------------------------------------
+@usableFromInline
+internal func setsockopt(
+    _ socket: SocketIODescriptor,
+    _ level: CInt,
+    _ option: CInt,
+    _ value: Bool) -> Error?
+{
+    var value: CInt = value ? 1 : 0
+    let result = HostOS.setsockopt(
+        socket.descriptor,
+        SOL_SOCKET,
+        option,
+        &value,
+        socklen_t(MemoryLayout<CInt>.size)
+    )
+    return result == 0 ? nil : Error()
+}
+
+// -------------------------------------
+public func setsockopt(
+    _ socket: SocketIODescriptor,
+    _ optionValue: SetSocketOptions) -> Error?
+{
+    switch optionValue
+    {
+        case .reuseAddress(let value):
+            return NIX.setsockopt(socket, SOL_SOCKET, SO_REUSEADDR, value)
+        case .reusePort(let value):
+            return NIX.setsockopt(socket, SOL_SOCKET, SO_REUSEPORT, value)
+    }
+}
+
+// -------------------------------------
+internal func getsockoptBool(
+    _ socket: SocketIODescriptor,
+    _ level: CInt,
+    _ option: CInt) -> Result<Bool, Error>
+{
+    var value: CInt = 0
+    var valueLen = socklen_t(MemoryLayout<CInt>.size)
+    let r = HostOS.getsockopt(
+        socket.descriptor,
+        level,
+        option,
+        &value,
+        &valueLen
+    )
+    return r == 0 ? .success(value != 0) : .failure(Error())
+}
+
+// -------------------------------------
+public func getsockopt(
+    _ socket: SocketIODescriptor,
+    _ option: GetSocketOptions) -> Result<SetSocketOptions, Error>
+{
+    switch option
+    {
+        case .reuseAddress:
+            switch NIX.getsockoptBool(socket, SOL_SOCKET, SO_REUSEADDR)
+            {
+                case .success(let b): return .success(.reuseAddress(b))
+                case .failure(let e): return .failure(e)
+            }
+        case .reusePort:
+            switch NIX.getsockoptBool(socket, SOL_SOCKET, SO_REUSEPORT)
+            {
+                case .success(let b): return .success(.reusePort(b))
+                case .failure(let e): return .failure(e)
+            }
+    }
+}
+
+// -------------------------------------
 /**
  Assign a name to an unnamed socket.
  

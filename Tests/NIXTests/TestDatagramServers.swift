@@ -22,6 +22,7 @@ import Foundation
 import Dispatch
 import XCTest
 import NIX
+import HostOS
 
 // MARK:-
 // -------------------------------------

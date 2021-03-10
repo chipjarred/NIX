@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 import NIX
+import HostOS
 import Foundation
 
 func echoServerExample()

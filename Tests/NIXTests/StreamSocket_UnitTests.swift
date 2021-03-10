@@ -1,5 +1,6 @@
 import XCTest
 @testable import NIX
+import HostOS
 
 // -------------------------------------
 final class StreamSocket_UnitTests: XCTestCase
