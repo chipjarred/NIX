@@ -227,6 +227,7 @@ public enum SetSocketOptions
 {
     case reuseAddress(_ value: Bool)
     case reusePort(_ value: Bool)
+    case ipV6Only(_ value: Bool)
 }
 
 // -------------------------------------
@@ -234,6 +235,7 @@ public enum GetSocketOptions
 {
     case reuseAddress
     case reusePort
+    case ipV6Only
 }
 
 // -------------------------------------
@@ -266,6 +268,8 @@ public func setsockopt(
             return NIX.setsockopt(socket, SOL_SOCKET, SO_REUSEADDR, value)
         case .reusePort(let value):
             return NIX.setsockopt(socket, SOL_SOCKET, SO_REUSEPORT, value)
+        case .ipV6Only(let value):
+            return NIX.setsockopt(socket, IPPROTO_IPV6, IPV6_V6ONLY, value)
     }
 }
 
@@ -302,6 +306,12 @@ public func getsockopt(
             }
         case .reusePort:
             switch NIX.getsockoptBool(socket, SOL_SOCKET, SO_REUSEPORT)
+            {
+                case .success(let b): return .success(.reusePort(b))
+                case .failure(let e): return .failure(e)
+            }
+        case .ipV6Only:
+            switch NIX.getsockoptBool(socket, IPPROTO_IPV6, IPV6_V6ONLY)
             {
                 case .success(let b): return .success(.reusePort(b))
                 case .failure(let e): return .failure(e)
