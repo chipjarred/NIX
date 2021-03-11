@@ -184,3 +184,71 @@ internal func inet_pton<IPAddress: HostOSAddress, S: StringProtocol>(
     
     return result == 1 ? netAddr : nil
 }
+
+// -------------------------------------
+/**
+ Obtain an `Array` of `SocketAddress` instances that correspond to the
+ specified `host` name and `port`.
+ 
+ - Parameters:
+    - host: The name of the host to look up
+    - port: The port `on` host to look up.
+    - socketType: The socket type for the connection desired.
+ 
+ - Returns: On success, the returned `Result` will contain an array of
+    `SocketAddress` instances suitable for making a connection to the
+    specified `host` and `port`.  Typically it will consist of one IPv4
+    address and one IPv6 address.  On failure, the returned result will
+    contain the underlying `Error`; (however currently the error actually be
+    the wrong error.   The underlying POSIX call does not set `errno` as most
+    do.  Instead it returns an error representing a different set of error
+    numbers.  This will be fixed in the future.
+ */
+public func sockaddr(for host: String, port: Int, socketType: SocketType)
+    -> Result<[SocketAddress], Error>
+{
+    host.withCString
+    { host in
+        "\(port)".withCString
+        { port in
+            var hints = HostOS.addrinfo()
+            hints.ai_flags = HostOS.PF_UNSPEC
+            hints.ai_socktype = socketType.rawValue
+            var addrInfo: UnsafeMutablePointer<HostOS.addrinfo>? = nil
+            let error = getaddrinfo(host, port, &hints, &addrInfo)
+            guard error == 0 else
+            {
+                /*
+                 FIXME: error here is actually described by
+                 gai_strerror(error) rather than by strerror(error).
+                 */
+                return .failure(Error(error))
+            }
+            defer { HostOS.freeaddrinfo(addrInfo) }
+            
+            var addresses: [SocketAddress] = []
+            while let curInfo = addrInfo?.pointee
+            {
+                switch curInfo.ai_family
+                {
+                    case AF_INET:
+                        curInfo.ai_addr.withMemoryRebound(
+                            to: sockaddr_in.self,
+                            capacity: 1)
+                            { addresses.append(SocketAddress($0.pointee)) }
+                        
+                    case AF_INET6:
+                        curInfo.ai_addr.withMemoryRebound(
+                            to: sockaddr_in6.self,
+                            capacity: 1)
+                            { addresses.append(SocketAddress($0.pointee)) }
+                        
+                    default: break
+                }
+                addrInfo = curInfo.ai_next
+            }
+            
+            return .success(addresses)
+        }
+    }
+}

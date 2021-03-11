@@ -12,6 +12,7 @@ class HostOSAddress_UnitTests: XCTestCase
         ("test_IP6_address_can_be_initialized_from_a_string_description", test_IP6_address_can_be_initialized_from_a_string_description),
         ("test_IP4_address_fails_to_initialize_from_an_invalid_string_description", test_IP4_address_fails_to_initialize_from_an_invalid_string_description),
         ("test_IP6_address_fails_to_initialize_from_an_invalid_string_description", test_IP6_address_fails_to_initialize_from_an_invalid_string_description),
+        ("test_can_get_SocketAddress_for_host_name_and_port", test_can_get_SocketAddress_for_host_name_and_port),
     ]
     
     // -------------------------------------
@@ -457,5 +458,24 @@ class HostOSAddress_UnitTests: XCTestCase
             let actual = in6_addr(address: input)
             XCTAssertNil(actual)
         }
+    }
+    
+    // -------------------------------------
+    func test_can_get_SocketAddress_for_host_name_and_port()
+    {
+        let addresses: [SocketAddress]
+        switch sockaddr(for: "localhost", port: 80, socketType: .stream)
+        {
+            case .success(let a): addresses = a
+            case .failure(_):
+                XCTFail("Unable to look up \"localhost\"")
+                return
+        }
+        
+        let loopback4 = SocketAddress(ip4Address: .loopback, port: 80)
+        let loopback6 = SocketAddress(ip6Address: .loopback, port: 80)
+    
+        XCTAssert(addresses.contains(loopback4))
+        XCTAssert(addresses.contains(loopback6))
     }
 }
