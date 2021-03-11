@@ -249,7 +249,7 @@ internal func setsockopt(
     var value: CInt = value ? 1 : 0
     let result = HostOS.setsockopt(
         socket.descriptor,
-        SOL_SOCKET,
+        level,
         option,
         &value,
         socklen_t(MemoryLayout<CInt>.size)
