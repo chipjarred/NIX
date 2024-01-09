@@ -72,18 +72,23 @@ public struct SocketAddress
     // -------------------------------------
     public init<T: HostOSSocketAddress>(_ socketAddress: T)
     {
-        self.storage = withPointer(to: socketAddress, recastTo: Storage.self)
+        #if DEBUG
+        withPointer(to: socketAddress, recastTo: __sockaddr_header.self)
         {
-            #if DEBUG
-            switch Int32($0.pointee.ss_family)
+            switch Int32($0.pointee.sa_family)
             {
                 case AF_INET, AF_INET6, AF_UNIX: break
                 default: assertionFailure(
-                        "Unsupported address family: \($0.pointee.ss_family)"
+                        "Unsupported address family: \($0.pointee.sa_family)"
                     )
             }
-            #endif
-            return $0.pointee
+        }
+        #endif
+
+        self.storage = Storage()
+        
+        withMutablePointer(to: &self.storage, recastTo: T.self) {
+            $0.pointee = socketAddress
         }
     }
     
